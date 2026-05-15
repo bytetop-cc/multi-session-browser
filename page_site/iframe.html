@@ -1,0 +1,1661 @@
+<html lang="en">
+
+<head>
+    <script>window._AWP_DEPLOY_VERSION = '9957635_a48bca2';</script>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <script>/* eslint-disable no-empty */
+        "use strict"; !function (u, d) { var t = "owl", e = "_Owl_", n = "Owl", r = "start", c = "error", p = "on" + c, f = u[p], h = "addEventListener", l = "attachEvent", v = "isReady", b = "dataSet"; u[t] = u[t] || function () { try { u[t].q = u[t].q || []; var e = [].slice.call(arguments); e[0] === r ? u[n] && u[n][r] ? u[n][r](e[1]) : u[t].q.unshift(e) : u[t].q.push(e) } catch (e) { } }, u[e] = u[e] || { preTasks: [], pageData: [], use: function (e, t) { this[v] ? u[n][e](t) : this.preTasks.push({ api: e, data: [t] }) }, run: function (t) { if (!(t = this).runned) { t.runned = !0, t[b] = [], u[p] = function () { t[v] || t[b].push({ type: "jsError", data: arguments }), f && f.apply(u, arguments) }, u[h] && u[h]("unhandledrejection", function (e) { t[v] || t[b].push({ type: "jsError", data: [e] }) }); var e = function (e) { !t[v] && e && t[b].push({ type: "resError", data: [e] }) }; u[h] ? u[h](c, e, !0) : u[l] && u[l](p, e); var n = "MutationObserver", r = u[n] || u["WebKit" + n] || u["Moz" + n], a = u.performance || u.WebKitPerformance, s = "disableMutaObserver"; if (r && a && a.now) try { var i = -1, o = u.navigator.userAgent; -1 < o.indexOf("compatible") && -1 < o.indexOf("MSIE") ? (new RegExp("MSIE (\\d+\\.\\d+);").test(o), i = parseFloat(RegExp.$1)) : -1 < o.indexOf("Trident") && -1 < o.indexOf("rv:11.0") && (i = 11), -1 !== i && i <= 11 ? t[s] = !0 : (t.observer = new r(function (e) { t.pageData.push({ mutations: e, startTime: a.now() }) })).observe(d, { childList: !0, subtree: !0 }) } catch (e) { } else t[s] = !0 } } }, u[e].runned || u[e].run() }(window, document);</script>
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/chunk-151ba3cd.db657c60.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/chunk-2d0b1c3e.bc56fab6.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/chunk-3ab831f1.032b2a9c.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/chunk-6d87385d.134518ab.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/chunk-799b29ac.6f7181bf.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/chunk-ea0c4406.5be02086.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/dpapp.e6dc38dd.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/dpzeus.ef69c3e0.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/hbnb.8a2d91e0.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/mtnb.e4e6620c.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/titans.5d954acf.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/whereami-knb.67bb7b2d.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/whereami-owl.6a4c0d84.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/wx.23674c83.js" rel="prefetch">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/css/commons.170b3a46.css" rel="stylesheet">
+    <link href="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/css/rating-management.ff12727c.css"
+        rel="stylesheet">
+    <link rel="dns-prefetch" href="//lx.meituan.net">
+    <link rel="dns-prefetch" href="//wreport.meituan.net">
+    <link rel="dns-prefetch" href="//report.meituan.com">
+    <script>!(function (win, doc, ns) {
+            var cacheFunName = '_MeiTuanALogObject';
+            win[cacheFunName] = ns;
+            if (!win[ns]) {
+                var _LX = function () {
+                    _LX.q.push(arguments);
+                    return _LX;
+                };
+                _LX.q = _LX.q || [];
+                _LX.l = +new Date();
+                win[ns] = _LX;
+            }
+        })(window, document, 'LXAnalytics');</script>
+    <script src="//lx.meituan.net/lx.js" charset="utf-8" async=""></script>
+    <title>评价管理</title>
+    <meta name="lx:category" content="cbg">
+    <meta name="lx:cid" content="c_cbg_1mtvvs8i">
+    <meta name="lx:autopv" content="off">
+    <link rel="dns-prefetch" href="//analytics.meituan.net">
+</head>
+
+<body marginwidth="0" marginheight="0"><noscript><strong>We're sorry but vg-platform-reviewmanage doesn't work properly
+            without JavaScript enabled. Please enable it to continue.</strong></noscript>
+    <div data-v-74e207d7="" class="rating-management-page">
+        <div data-v-74e207d7="" class="page-container">
+            <div data-v-74e207d7="" class="page-header">
+                <h1 data-v-74e207d7="" class="page-title">评价管理</h1>
+            </div>
+            <div data-v-7b10d31a="" data-v-74e207d7="" class="filter-card mtd-card mtd-card-always-shadow"><!---->
+                <!---->
+                <div class="mtd-card-body">
+                    <div data-v-7b10d31a="" class="filter-container">
+                        <div data-v-7b10d31a="" class="filter-left"><!---->
+                            <div data-v-7b10d31a="" class="filter-item"><label data-v-7b10d31a=""
+                                    class="filter-label">门店</label>
+                                <div data-v-7b10d31a="" class="shop-select-wrapper"><input data-v-7b10d31a=""
+                                        readonly="readonly" class="shop-select-input"></div>
+                            </div>
+                            <div data-v-7b10d31a="" class="filter-item"><label data-v-7b10d31a=""
+                                    class="filter-label">平台</label>
+                                <div data-v-7b10d31a="" class="mtd-select"><!---->
+                                    <div>
+                                        <div
+                                            class="mtd-input-wrapper mtd-select-input mtd-input-suffix mtd-input-readonly">
+                                            <!----> <input type="text" readonly="readonly" autocomplete="off"
+                                                placeholder="点评" class="mtd-input"> <span
+                                                class="mtd-input-suffix-inner"><i
+                                                    class="mtdicon mtdicon-down-thick"></i></span></div>
+                                        <div class="mtd-popper mtd-select-dropdown"
+                                            style="display: none; min-width: 180px;"><!---->
+                                            <ul class="mtd-dropdown-menu"><!---->
+                                                <div><!---->
+                                                    <li data-v-7b10d31a=""
+                                                        class="mtd-dropdown-menu-item mtd-dropdown-menu-item-selected">
+                                                        <span class="mtd-option-label-wrapper"><span>点评</span>
+                                                            <!----></span></li>
+                                                    <li data-v-7b10d31a="" class="mtd-dropdown-menu-item"><span
+                                                            class="mtd-option-label-wrapper"><span>美团</span>
+                                                            <!----></span></li>
+                                                </div> <!----> <!---->
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div data-v-7b10d31a="" class="filter-right"><a data-v-7b10d31a="" href="javascript:void(0)"
+                                class="rating-rule-link">评价规则</a></div>
+                    </div>
+                </div>
+            </div>
+            <div data-v-74e207d7="" class="content-card-area">
+                <div data-v-74e207d7="" class="tabs-area">
+                    <div data-v-74e207d7="" class="mtd-tabs mtd-tabs-nocard mtd-tabs-large">
+                        <div class="mtd-tabs-nav top">
+                            <div class="mtd-tabs-nav-container">
+                                <div class="mtd-tabs-nav-scroll" style="max-width: 100%;">
+                                    <div class="mtd-tabs-nav-animated">
+                                        <div class="mtd-tabs-bar mtd-tabs-bar-active"
+                                            style="width: 56px; transform: translateX(94px);"></div>
+                                        <div class="mtd-tabs-item mtd-tabs-item-large">
+                                            <div class="mtd-tabs-item-label">多门店数据</div>
+                                        </div>
+                                        <div class="mtd-tabs-item mtd-tabs-item-large mtd-tab-active">
+                                            <div class="mtd-tabs-item-label">评价明细</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mtd-tabs-bottom-border"></div>
+                        </div>
+                        <div class="mtd-tabs-content">
+                            <div data-v-74e207d7="" class="mtd-tab-pane" style="display: none;">
+                                <div data-v-74e207d7="" class="tab-content">
+                                    <div data-v-74e207d7="" class="quick-filter-row">
+                                        <div data-v-74e207d7="" class="quick-filter-left"><button data-v-74e207d7=""
+                                                type="button" class="mtd-btn quick-filter-btn"><!----><!----><span> 昨日
+                                                </span></button><button data-v-74e207d7="" type="button"
+                                                class="mtd-btn quick-filter-btn active"><!----><!----><span> 近7天
+                                                </span></button><button data-v-74e207d7="" type="button"
+                                                class="mtd-btn quick-filter-btn"><!----><!----><span> 近30天
+                                                </span></button></div>
+                                        <div data-v-74e207d7="" class="quick-filter-right"><a data-v-74e207d7=""
+                                                href="javascript:void(0)" class="analysis-link"> 查看更多评价数据分析&gt;&gt;
+                                            </a><button data-v-74e207d7="" type="button"
+                                                class="download-btn mtd-btn"><!----><!----><span><i data-v-74e207d7=""
+                                                        class="download-icon mtdicon mtdicon-download-o"></i><span
+                                                        data-v-74e207d7="">下载明细表格</span></span></button></div>
+                                    </div>
+                                    <div data-v-74e207d7="" class="table-wrapper">
+                                        <div data-v-74e207d7=""
+                                            class="data-table mtd-table mtd-table-fit mtd-table-scrollable-x"
+                                            sticky-header="[object Object]">
+                                            <div class="mtd-table-hidden-columns">
+                                                <div data-v-74e207d7=""></div>
+                                                <div data-v-74e207d7=""></div>
+                                                <div data-v-74e207d7=""></div>
+                                                <div data-v-74e207d7=""></div>
+                                                <div data-v-74e207d7=""></div>
+                                                <div data-v-74e207d7=""></div>
+                                                <div data-v-74e207d7=""></div>
+                                            </div>
+                                            <div class="mtd-table-header-wrapper">
+                                                <table cellspacing="0" cellpadding="0" border="0"
+                                                    class="mtd-table-header" style="width: 820px;">
+                                                    <colgroup>
+                                                        <col name="mtd-table_1_column_1" width="120">
+                                                        <col name="mtd-table_1_column_2" width="120">
+                                                        <col name="mtd-table_1_column_3" width="120">
+                                                        <col name="mtd-table_1_column_4" width="120">
+                                                        <col name="mtd-table_1_column_5" width="100">
+                                                        <col name="mtd-table_1_column_6" width="120">
+                                                        <col name="mtd-table_1_column_7" width="120">
+                                                    </colgroup>
+                                                    <thead>
+                                                        <tr class="">
+                                                            <th colspan="1" rowspan="1"
+                                                                class="mtd-table_1_column_1    mtd-table-column-default mtd-table-is-leaf">
+                                                                <div class="mtd-table-cell">门店名称</div>
+                                                            </th>
+                                                            <th colspan="1" rowspan="1"
+                                                                class="mtd-table_1_column_2    mtd-table-column-has-actions mtd-table-column-default mtd-table-is-leaf mtd-table-is-sortable descending">
+                                                                <div class="mtd-table-cell">新增评价数<span
+                                                                        class="mtd-table-sortable"><i class="mtd-table-sortable-icon
+            mtd-table-sortable-ascending"></i><i class="mtd-table-sortable-icon
+            mtd-table-sortable-descending"></i></span></div>
+                                                            </th>
+                                                            <th colspan="1" rowspan="1"
+                                                                class="mtd-table_1_column_3    mtd-table-column-has-actions mtd-table-column-default mtd-table-is-leaf mtd-table-is-sortable">
+                                                                <div class="mtd-table-cell">新增好评数<span
+                                                                        class="mtd-table-sortable"><i class="mtd-table-sortable-icon
+            mtd-table-sortable-ascending"></i><i class="mtd-table-sortable-icon
+            mtd-table-sortable-descending"></i></span></div>
+                                                            </th>
+                                                            <th colspan="1" rowspan="1"
+                                                                class="mtd-table_1_column_4    mtd-table-column-has-actions mtd-table-column-default mtd-table-is-leaf mtd-table-is-sortable">
+                                                                <div class="mtd-table-cell">新增差评数<span
+                                                                        class="mtd-table-sortable"><i class="mtd-table-sortable-icon
+            mtd-table-sortable-ascending"></i><i class="mtd-table-sortable-icon
+            mtd-table-sortable-descending"></i></span></div>
+                                                            </th>
+                                                            <th colspan="1" rowspan="1"
+                                                                class="mtd-table_1_column_5    mtd-table-column-has-actions mtd-table-column-default mtd-table-is-leaf mtd-table-is-sortable">
+                                                                <div class="mtd-table-cell">差评回复率<span
+                                                                        class="mtd-table-sortable"><i class="mtd-table-sortable-icon
+            mtd-table-sortable-ascending"></i><i class="mtd-table-sortable-icon
+            mtd-table-sortable-descending"></i></span></div>
+                                                            </th>
+                                                            <th colspan="1" rowspan="1"
+                                                                class="mtd-table_1_column_6    mtd-table-column-has-actions mtd-table-column-default mtd-table-is-leaf mtd-table-is-sortable">
+                                                                <div class="mtd-table-cell">星级评分<span
+                                                                        class="mtd-table-sortable"><i class="mtd-table-sortable-icon
+            mtd-table-sortable-ascending"></i><i class="mtd-table-sortable-icon
+            mtd-table-sortable-descending"></i></span></div>
+                                                            </th>
+                                                            <th colspan="1" rowspan="1"
+                                                                class="mtd-table_1_column_7 mtd-table-text-center   mtd-table-is-hidden mtd-table-column-default mtd-table-is-leaf">
+                                                                <div class="mtd-table-cell">操作</div>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                </table>
+                                            </div>
+                                            <div class="mtd-table-body-wrapper mtd-table-scrolling-left">
+                                                <table cellspacing="0" cellpadding="0" border="0" class="mtd-table-body"
+                                                    style="width: 820px;">
+                                                    <colgroup>
+                                                        <col name="mtd-table_1_column_1" width="120">
+                                                        <col name="mtd-table_1_column_2" width="120">
+                                                        <col name="mtd-table_1_column_3" width="120">
+                                                        <col name="mtd-table_1_column_4" width="120">
+                                                        <col name="mtd-table_1_column_5" width="100">
+                                                        <col name="mtd-table_1_column_6" width="120">
+                                                        <col name="mtd-table_1_column_7" width="120">
+                                                    </colgroup>
+                                                    <tbody>
+                                                        <tr class="mtd-table-row">
+                                                            <td rowspan="1" colspan="1"
+                                                                class="mtd-table_1_column_1   mtd-table-column-default">
+                                                                <div class="mtd-table-cell"><span data-v-74e207d7=""
+                                                                        class="mtd-popover-rel">
+                                                                        <div data-v-74e207d7="" class="shop-name-cell">
+                                                                            享鑫殿盲人按摩（刘家窑店）</div>
+                                                                        <div class="mtd-popper mtd-popper-show-arrow mtd-popover"
+                                                                            style="display: none;">
+                                                                            <div x-arrow="" class="mtd-popper-arrow">
+                                                                            </div> <!---->
+                                                                        </div>
+                                                                    </span></div>
+                                                            </td>
+                                                            <td rowspan="1" colspan="1"
+                                                                class="mtd-table_1_column_2   mtd-table-column-default">
+                                                                <div class="mtd-table-cell">
+                                                                    <div data-v-74e207d7="" class="table-cell-with-sub">
+                                                                        <div data-v-74e207d7="">4</div>
+                                                                        <div data-v-74e207d7="" class="radio-sub-text">
+                                                                            <span data-v-74e207d7=""
+                                                                                style="color: rgb(153, 153, 153); font-size: 12px; font-weight: normal;">
+                                                                                近7天 </span><span data-v-74e207d7=""
+                                                                                style="color: rgb(255, 39, 39); font-size: 14px; font-weight: 500; margin-left: 4px; position: relative; top: 1px;">
+                                                                                +4% </span></div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td rowspan="1" colspan="1"
+                                                                class="mtd-table_1_column_3   mtd-table-column-default">
+                                                                <div class="mtd-table-cell">
+                                                                    <div data-v-74e207d7="" class="table-cell-with-sub">
+                                                                        <div data-v-74e207d7="">4</div>
+                                                                        <div data-v-74e207d7="" class="radio-sub-text">
+                                                                            <span data-v-74e207d7=""
+                                                                                style="color: rgb(153, 153, 153); font-size: 12px; font-weight: normal;">
+                                                                                近7天 </span><span data-v-74e207d7=""
+                                                                                style="color: rgb(255, 39, 39); font-size: 14px; font-weight: 500; margin-left: 4px; position: relative; top: 1px;">
+                                                                                +4% </span></div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td rowspan="1" colspan="1"
+                                                                class="mtd-table_1_column_4   mtd-table-column-default">
+                                                                <div class="mtd-table-cell">
+                                                                    <div data-v-74e207d7="" class="table-cell-with-sub">
+                                                                        <div data-v-74e207d7="">0</div>
+                                                                        <div data-v-74e207d7="" class="radio-sub-text">
+                                                                            <span data-v-74e207d7=""
+                                                                                style="color: rgb(153, 153, 153); font-size: 12px; font-weight: normal;">
+                                                                                近7天 </span><span data-v-74e207d7=""
+                                                                                style="color: rgb(153, 153, 153); font-size: 12px; font-weight: normal; margin-left: 4px; position: relative; top: 1px;">
+                                                                                持平 </span></div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td rowspan="1" colspan="1"
+                                                                class="mtd-table_1_column_5   mtd-table-column-default">
+                                                                <div class="mtd-table-cell">0.0%</div>
+                                                            </td>
+                                                            <td rowspan="1" colspan="1"
+                                                                class="mtd-table_1_column_6   mtd-table-column-default">
+                                                                <div class="mtd-table-cell">
+                                                                    <div data-v-74e207d7="" class="table-cell-with-sub">
+                                                                        <div data-v-74e207d7="">4.6</div>
+                                                                        <div data-v-74e207d7="" class="radio-sub-text">
+                                                                            <span data-v-74e207d7=""
+                                                                                style="color: rgb(153, 153, 153); font-size: 12px; font-weight: normal;">
+                                                                                近7天 </span><span data-v-74e207d7=""
+                                                                                style="color: rgb(17, 192, 110); font-size: 14px; font-weight: 500; margin-left: 4px; position: relative; top: 1px;">
+                                                                                -0.1 </span></div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td rowspan="1" colspan="1"
+                                                                class="mtd-table_1_column_7 mtd-table-text-center  mtd-table-is-hidden mtd-table-column-default">
+                                                                <div class="mtd-table-cell"><button data-v-74e207d7=""
+                                                                        type="button"
+                                                                        class="action-link mtd-btn mtd-btn-text mtd-btn-small"><!----><!----><span>评价明细</span></button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table> <!----> <!----> <!---->
+                                            </div> <!----> <!---->
+                                            <div class="mtd-table-fixed-right" style="width: 120px;">
+                                                <div class="mtd-table-fixed-header-wrapper">
+                                                    <table cellspacing="0" cellpadding="0" border="0"
+                                                        class="mtd-table-header" style="width: 820px;">
+                                                        <colgroup>
+                                                            <col name="mtd-table_1_column_1" width="120">
+                                                            <col name="mtd-table_1_column_2" width="120">
+                                                            <col name="mtd-table_1_column_3" width="120">
+                                                            <col name="mtd-table_1_column_4" width="120">
+                                                            <col name="mtd-table_1_column_5" width="100">
+                                                            <col name="mtd-table_1_column_6" width="120">
+                                                            <col name="mtd-table_1_column_7" width="120">
+                                                        </colgroup>
+                                                        <thead>
+                                                            <tr class="">
+                                                                <th colspan="1" rowspan="1"
+                                                                    class="mtd-table_1_column_1    mtd-table-is-hidden mtd-table-column-default mtd-table-is-leaf">
+                                                                    <div class="mtd-table-cell">门店名称</div>
+                                                                </th>
+                                                                <th colspan="1" rowspan="1"
+                                                                    class="mtd-table_1_column_2    mtd-table-column-has-actions mtd-table-is-hidden mtd-table-column-default mtd-table-is-leaf mtd-table-is-sortable descending">
+                                                                    <div class="mtd-table-cell">新增评价数<span
+                                                                            class="mtd-table-sortable"><i class="mtd-table-sortable-icon
+            mtd-table-sortable-ascending"></i><i class="mtd-table-sortable-icon
+            mtd-table-sortable-descending"></i></span></div>
+                                                                </th>
+                                                                <th colspan="1" rowspan="1"
+                                                                    class="mtd-table_1_column_3    mtd-table-column-has-actions mtd-table-is-hidden mtd-table-column-default mtd-table-is-leaf mtd-table-is-sortable">
+                                                                    <div class="mtd-table-cell">新增好评数<span
+                                                                            class="mtd-table-sortable"><i class="mtd-table-sortable-icon
+            mtd-table-sortable-ascending"></i><i class="mtd-table-sortable-icon
+            mtd-table-sortable-descending"></i></span></div>
+                                                                </th>
+                                                                <th colspan="1" rowspan="1"
+                                                                    class="mtd-table_1_column_4    mtd-table-column-has-actions mtd-table-is-hidden mtd-table-column-default mtd-table-is-leaf mtd-table-is-sortable">
+                                                                    <div class="mtd-table-cell">新增差评数<span
+                                                                            class="mtd-table-sortable"><i class="mtd-table-sortable-icon
+            mtd-table-sortable-ascending"></i><i class="mtd-table-sortable-icon
+            mtd-table-sortable-descending"></i></span></div>
+                                                                </th>
+                                                                <th colspan="1" rowspan="1"
+                                                                    class="mtd-table_1_column_5    mtd-table-column-has-actions mtd-table-is-hidden mtd-table-column-default mtd-table-is-leaf mtd-table-is-sortable">
+                                                                    <div class="mtd-table-cell">差评回复率<span
+                                                                            class="mtd-table-sortable"><i class="mtd-table-sortable-icon
+            mtd-table-sortable-ascending"></i><i class="mtd-table-sortable-icon
+            mtd-table-sortable-descending"></i></span></div>
+                                                                </th>
+                                                                <th colspan="1" rowspan="1"
+                                                                    class="mtd-table_1_column_6    mtd-table-column-has-actions mtd-table-is-hidden mtd-table-column-default mtd-table-is-leaf mtd-table-is-sortable">
+                                                                    <div class="mtd-table-cell">星级评分<span
+                                                                            class="mtd-table-sortable"><i class="mtd-table-sortable-icon
+            mtd-table-sortable-ascending"></i><i class="mtd-table-sortable-icon
+            mtd-table-sortable-descending"></i></span></div>
+                                                                </th>
+                                                                <th colspan="1" rowspan="1"
+                                                                    class="mtd-table_1_column_7 mtd-table-text-center   mtd-table-column-default mtd-table-is-leaf">
+                                                                    <div class="mtd-table-cell">操作</div>
+                                                                </th>
+                                                            </tr>
+                                                        </thead>
+                                                    </table>
+                                                </div>
+                                                <div class="mtd-table-fixed-body-wrapper" style="top: 0px;">
+                                                    <table cellspacing="0" cellpadding="0" border="0"
+                                                        class="mtd-table-body" style="width: 820px;">
+                                                        <colgroup>
+                                                            <col name="mtd-table_1_column_1" width="120">
+                                                            <col name="mtd-table_1_column_2" width="120">
+                                                            <col name="mtd-table_1_column_3" width="120">
+                                                            <col name="mtd-table_1_column_4" width="120">
+                                                            <col name="mtd-table_1_column_5" width="100">
+                                                            <col name="mtd-table_1_column_6" width="120">
+                                                            <col name="mtd-table_1_column_7" width="120">
+                                                        </colgroup>
+                                                        <tbody>
+                                                            <tr class="mtd-table-row">
+                                                                <td rowspan="1" colspan="1"
+                                                                    class="mtd-table_1_column_1   mtd-table-is-hidden mtd-table-column-default">
+                                                                    <div class="mtd-table-cell"><span data-v-74e207d7=""
+                                                                            class="mtd-popover-rel">
+                                                                            <div data-v-74e207d7=""
+                                                                                class="shop-name-cell">享鑫殿盲人按摩（刘家窑店）
+                                                                            </div>
+                                                                            <div class="mtd-popper mtd-popper-show-arrow mtd-popover"
+                                                                                style="display: none;">
+                                                                                <div x-arrow=""
+                                                                                    class="mtd-popper-arrow"></div>
+                                                                                <!---->
+                                                                            </div>
+                                                                        </span></div>
+                                                                </td>
+                                                                <td rowspan="1" colspan="1"
+                                                                    class="mtd-table_1_column_2   mtd-table-is-hidden mtd-table-column-default">
+                                                                    <div class="mtd-table-cell">
+                                                                        <div data-v-74e207d7=""
+                                                                            class="table-cell-with-sub">
+                                                                            <div data-v-74e207d7="">4</div>
+                                                                            <div data-v-74e207d7=""
+                                                                                class="radio-sub-text"><span
+                                                                                    data-v-74e207d7=""
+                                                                                    style="color: rgb(153, 153, 153); font-size: 12px; font-weight: normal;">
+                                                                                    近7天 </span><span data-v-74e207d7=""
+                                                                                    style="color: rgb(255, 39, 39); font-size: 14px; font-weight: 500; margin-left: 4px; position: relative; top: 1px;">
+                                                                                    +4% </span></div>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td rowspan="1" colspan="1"
+                                                                    class="mtd-table_1_column_3   mtd-table-is-hidden mtd-table-column-default">
+                                                                    <div class="mtd-table-cell">
+                                                                        <div data-v-74e207d7=""
+                                                                            class="table-cell-with-sub">
+                                                                            <div data-v-74e207d7="">4</div>
+                                                                            <div data-v-74e207d7=""
+                                                                                class="radio-sub-text"><span
+                                                                                    data-v-74e207d7=""
+                                                                                    style="color: rgb(153, 153, 153); font-size: 12px; font-weight: normal;">
+                                                                                    近7天 </span><span data-v-74e207d7=""
+                                                                                    style="color: rgb(255, 39, 39); font-size: 14px; font-weight: 500; margin-left: 4px; position: relative; top: 1px;">
+                                                                                    +4% </span></div>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td rowspan="1" colspan="1"
+                                                                    class="mtd-table_1_column_4   mtd-table-is-hidden mtd-table-column-default">
+                                                                    <div class="mtd-table-cell">
+                                                                        <div data-v-74e207d7=""
+                                                                            class="table-cell-with-sub">
+                                                                            <div data-v-74e207d7="">0</div>
+                                                                            <div data-v-74e207d7=""
+                                                                                class="radio-sub-text"><span
+                                                                                    data-v-74e207d7=""
+                                                                                    style="color: rgb(153, 153, 153); font-size: 12px; font-weight: normal;">
+                                                                                    近7天 </span><span data-v-74e207d7=""
+                                                                                    style="color: rgb(153, 153, 153); font-size: 12px; font-weight: normal; margin-left: 4px; position: relative; top: 1px;">
+                                                                                    持平 </span></div>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td rowspan="1" colspan="1"
+                                                                    class="mtd-table_1_column_5   mtd-table-is-hidden mtd-table-column-default">
+                                                                    <div class="mtd-table-cell">0.0%</div>
+                                                                </td>
+                                                                <td rowspan="1" colspan="1"
+                                                                    class="mtd-table_1_column_6   mtd-table-is-hidden mtd-table-column-default">
+                                                                    <div class="mtd-table-cell">
+                                                                        <div data-v-74e207d7=""
+                                                                            class="table-cell-with-sub">
+                                                                            <div data-v-74e207d7="">4.6</div>
+                                                                            <div data-v-74e207d7=""
+                                                                                class="radio-sub-text"><span
+                                                                                    data-v-74e207d7=""
+                                                                                    style="color: rgb(153, 153, 153); font-size: 12px; font-weight: normal;">
+                                                                                    近7天 </span><span data-v-74e207d7=""
+                                                                                    style="color: rgb(17, 192, 110); font-size: 14px; font-weight: 500; margin-left: 4px; position: relative; top: 1px;">
+                                                                                    -0.1 </span></div>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td rowspan="1" colspan="1"
+                                                                    class="mtd-table_1_column_7 mtd-table-text-center  mtd-table-column-default">
+                                                                    <div class="mtd-table-cell"><button
+                                                                            data-v-74e207d7="" type="button"
+                                                                            class="action-link mtd-btn mtd-btn-text mtd-btn-small"><!----><!----><span>评价明细</span></button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div> <!---->
+                                            </div>
+                                            <div class="mtd-table-fixed-right-patch" style="width: 0px; height: 0px;">
+                                            </div>
+                                            <div class="mtd-table-column-resize-proxy" style="display: none;"></div>
+                                            <span class="mtd-tooltip-rel"><!---->
+                                                <div class="mtd-popper mtd-popper-show-arrow mtd-tooltip mtd-table-overflow-tooltip"
+                                                    style="display: none;">
+                                                    <div x-arrow="" class="mtd-popper-arrow"></div> <!---->
+                                                </div>
+                                            </span>
+                                        </div>
+                                        <div data-v-74e207d7="" class="pagination-wrapper">
+                                            <div data-v-74e207d7="" class="mtd-pagination  ">
+                                                <ul class="mtd-pager">
+                                                    <li
+                                                        class="mtdicon mtdicon-left-thick mtd-pager-item mtd-pager-prev mtd-pager-disabled">
+                                                    </li>
+                                                    <li class="mtd-pager-item mtd-pager-number mtd-pager-active">1</li>
+                                                    <!----> <!----> <!---->
+                                                    <li
+                                                        class="mtd-pager-item mtd-pager-next mtdicon mtdicon-right-thick mtd-pager-disabled">
+                                                    </li>
+                                                </ul>
+                                                <div class="mtd-select mtd-pagination-options"><!---->
+                                                    <div>
+                                                        <div
+                                                            class="mtd-input-wrapper mtd-select-input mtd-input-suffix mtd-input-readonly">
+                                                            <!----> <input type="text" readonly="readonly"
+                                                                autocomplete="off" placeholder="20条/页"
+                                                                class="mtd-input"> <span
+                                                                class="mtd-input-suffix-inner"><i
+                                                                    class="mtdicon mtdicon-down-thick"></i></span></div>
+                                                        <div class="mtd-popper mtd-select-dropdown"
+                                                            style="display: none; min-width: 100px;"><!---->
+                                                            <ul class="mtd-dropdown-menu"><!---->
+                                                                <div><!---->
+                                                                    <li class="mtd-dropdown-menu-item"><span
+                                                                            class="mtd-option-label-wrapper"><span>10条/页</span>
+                                                                            <!----></span></li>
+                                                                    <li
+                                                                        class="mtd-dropdown-menu-item mtd-dropdown-menu-item-selected">
+                                                                        <span
+                                                                            class="mtd-option-label-wrapper"><span>20条/页</span>
+                                                                            <!----></span></li>
+                                                                    <li class="mtd-dropdown-menu-item"><span
+                                                                            class="mtd-option-label-wrapper"><span>50条/页</span>
+                                                                            <!----></span></li>
+                                                                    <li class="mtd-dropdown-menu-item"><span
+                                                                            class="mtd-option-label-wrapper"><span>100条/页</span>
+                                                                            <!----></span></li>
+                                                                </div> <!----> <!---->
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div><span class="mtd-pagination-total">共1条</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div data-v-74e207d7="" class="mtd-tab-pane" style="">
+                                <div data-v-74e207d7="" class="tab-content">
+                                    <div data-v-19e263d2="" data-v-74e207d7="" class="shop-rating-overview">
+                                        <div data-v-19e263d2="" class="shop-rating-overview__container">
+                                            <div data-v-19e263d2="" class="shop-rating-overview__top-section">
+                                                <div data-v-19e263d2="" class="shop-rating-overview__header">
+                                                    <div data-v-19e263d2="" class="shop-rating-overview__score-card">
+                                                        <div data-v-19e263d2=""
+                                                            class="shop-rating-overview__score-content">
+                                                            <div data-v-19e263d2=""
+                                                                class="shop-rating-overview__score-main"><span
+                                                                    data-v-19e263d2=""
+                                                                    class="shop-rating-overview__score-value">4.5</span><span
+                                                                    data-v-19e263d2=""
+                                                                    class="comment-star shop-rating-overview__dp-stars comment-rank45"></span>
+                                                            </div>
+                                                            <div data-v-19e263d2=""
+                                                                class="shop-rating-overview__score-details">
+                                                                <div data-v-19e263d2=""
+                                                                    class="shop-rating-overview__score-period"><span
+                                                                        data-v-19e263d2=""
+                                                                        class="shop-rating-overview__score-label">较昨日</span><!----><span
+                                                                        data-v-19e263d2=""
+                                                                        class="shop-rating-overview__score-label">持平</span>
+                                                                </div>
+                                                                <div data-v-19e263d2=""
+                                                                    class="shop-rating-overview__score-count"><span
+                                                                        data-v-19e263d2=""
+                                                                        class="shop-rating-overview__score-label">累计评价数</span><span
+                                                                        data-v-19e263d2=""
+                                                                        class="shop-rating-overview__score-number">251</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div data-v-19e263d2=""
+                                                            class="shop-rating-overview__score-divider"><span
+                                                                data-v-19e263d2=""
+                                                                class="shop-rating-overview__divider-text">详情</span><i
+                                                                data-v-19e263d2=""
+                                                                class="shop-rating-overview__divider-icon mtdicon mtdicon-right-thick"></i>
+                                                        </div>
+                                                    </div>
+                                                    <div data-v-19e263d2="" class="shop-rating-overview__stats-card">
+                                                        <!----><!---->
+                                                        <div data-v-19e263d2=""
+                                                            class="shop-rating-overview__stats-inner">
+                                                            <div data-v-19e263d2=""
+                                                                class="shop-rating-overview__stats-header">
+                                                                <div data-v-19e263d2=""
+                                                                    class="shop-rating-overview__stats-tabs">
+                                                                    <div data-v-19e263d2=""
+                                                                        class="shop-rating-overview__tab"> 昨日 </div>
+                                                                    <div data-v-19e263d2=""
+                                                                        class="shop-rating-overview__tab shop-rating-overview__tab--active">
+                                                                        近7天 </div>
+                                                                    <div data-v-19e263d2=""
+                                                                        class="shop-rating-overview__tab"> 近30天 </div>
+                                                                </div>
+                                                            </div>
+                                                            <div data-v-19e263d2=""
+                                                                class="shop-rating-overview__stats-content">
+                                                                <div data-v-67f8bec6="" data-v-19e263d2=""
+                                                                    class="stat-item">
+                                                                    <div data-v-67f8bec6="" class="stat-item__content">
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__title">新增评价数</div>
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__value">4</div>
+                                                                    </div>
+                                                                    <div data-v-67f8bec6="" class="stat-item__change">
+                                                                        <span data-v-67f8bec6=""
+                                                                            class="stat-item__change-label">较上7天</span>
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__change-indicator"><img
+                                                                                data-v-67f8bec6=""
+                                                                                src="https://p0.meituan.net/ingee/3b3531d68c6962aa769ae5247a4b6ebc377.png"
+                                                                                alt="up"
+                                                                                class="stat-item__change-icon"><span
+                                                                                data-v-67f8bec6=""
+                                                                                class="stat-item__change-percentage stat-item__change-percentage--up">4</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div data-v-67f8bec6="" data-v-19e263d2=""
+                                                                    class="stat-item">
+                                                                    <div data-v-67f8bec6="" class="stat-item__content">
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__title">新增好评数</div>
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__value">4</div>
+                                                                    </div>
+                                                                    <div data-v-67f8bec6="" class="stat-item__change">
+                                                                        <span data-v-67f8bec6=""
+                                                                            class="stat-item__change-label">较上7天</span>
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__change-indicator"><img
+                                                                                data-v-67f8bec6=""
+                                                                                src="https://p0.meituan.net/ingee/3b3531d68c6962aa769ae5247a4b6ebc377.png"
+                                                                                alt="up"
+                                                                                class="stat-item__change-icon"><span
+                                                                                data-v-67f8bec6=""
+                                                                                class="stat-item__change-percentage stat-item__change-percentage--up">4</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div data-v-67f8bec6="" data-v-19e263d2=""
+                                                                    class="stat-item">
+                                                                    <div data-v-67f8bec6="" class="stat-item__content">
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__title">新增差评数</div>
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__value">0</div>
+                                                                    </div>
+                                                                    <div data-v-67f8bec6="" class="stat-item__change">
+                                                                        <span data-v-67f8bec6=""
+                                                                            class="stat-item__change-label">较上7天</span>
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__change-indicator">
+                                                                            <!----><span data-v-67f8bec6=""
+                                                                                class="stat-item__change-percentage stat-item__change-percentage--flat">持平</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div data-v-67f8bec6="" data-v-19e263d2=""
+                                                                    class="stat-item">
+                                                                    <div data-v-67f8bec6="" class="stat-item__content">
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__title">差评回复率</div>
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__value">0.00%</div>
+                                                                    </div>
+                                                                    <div data-v-67f8bec6="" class="stat-item__change">
+                                                                        <span data-v-67f8bec6=""
+                                                                            class="stat-item__change-label">较上7天</span>
+                                                                        <div data-v-67f8bec6=""
+                                                                            class="stat-item__change-indicator">
+                                                                            <!----><span data-v-67f8bec6=""
+                                                                                class="stat-item__change-percentage stat-item__change-percentage--flat">持平</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div data-v-19e263d2=""
+                                                            class="shop-rating-overview__stats-image"><img
+                                                                data-v-19e263d2=""
+                                                                src="https://p0.meituan.net/ingee/0b883bca9c5278c38685f3172f7b3c8b47202.png"
+                                                                alt="stats"></div>
+                                                        <div data-v-19e263d2=""
+                                                            class="shop-rating-overview__stats-action"><span
+                                                                data-v-19e263d2=""
+                                                                class="shop-rating-overview__action-text">详情</span><i
+                                                                data-v-19e263d2=""
+                                                                class="shop-rating-overview__action-icon mtdicon mtdicon-right-thick"></i>
+                                                        </div>
+                                                    </div>
+                                                </div><!----><!---->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div data-v-2519a564="" data-v-74e207d7="" class="reviews-card">
+                    <div data-v-2519a564="" class="reviews-card__header">
+                        <h3 data-v-2519a564="" class="reviews-card__title">评价列表</h3>
+                        <div data-v-2519a564="" class="reviews-card__actions"><button data-v-2519a564="" type="button"
+                                class="reviews-card__action-btn mtd-btn mtd-btn-text mtd-btn-small"><!----><!----><span>
+                                    我的投诉 </span></button><button data-v-2519a564="" type="button"
+                                class="reviews-card__action-btn mtd-btn mtd-btn-text mtd-btn-small"><!----><!----><span><i
+                                        data-v-2519a564=""
+                                        class="reviews-card__action-icon mtdicon mtdicon-download-o"></i><span
+                                        data-v-2519a564="">下载评论</span></span></button></div>
+                    </div>
+                    <div data-v-2519a564="" class="reviews-card__date-picker-wrapper">
+                        <div data-v-2519a564="" class="reviews-card__quick-date-select mtd-select"><!---->
+                            <div>
+                                <div class="mtd-input-wrapper mtd-select-input mtd-input-suffix mtd-input-readonly">
+                                    <!----> <input type="text" readonly="readonly" autocomplete="off" placeholder="近30天"
+                                        class="mtd-input"> <span class="mtd-input-suffix-inner"><i
+                                            class="mtdicon mtdicon-down-thick"></i></span></div>
+                                <div class="mtd-popper mtd-select-dropdown" style="display: none; min-width: 100px;">
+                                    <!---->
+                                    <ul class="mtd-dropdown-menu"><!---->
+                                        <div><!---->
+                                            <li data-v-2519a564="" class="mtd-dropdown-menu-item"><span
+                                                    class="mtd-option-label-wrapper"><span>昨日</span> <!----></span></li>
+                                            <li data-v-2519a564="" class="mtd-dropdown-menu-item"><span
+                                                    class="mtd-option-label-wrapper"><span>近7天</span> <!----></span>
+                                            </li>
+                                            <li data-v-2519a564=""
+                                                class="mtd-dropdown-menu-item mtd-dropdown-menu-item-selected"><span
+                                                    class="mtd-option-label-wrapper"><span>近30天</span> <!----></span>
+                                            </li>
+                                        </div> <!----> <!---->
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div data-v-2519a564="" class="mtd-date-picker" disabled-date="function () { [native code] }"
+                            style="width: 300px;">
+                            <div class="mtd-input-wrapper mtd-input-suffix mtd-date-picker-editor"><!----> <!---->
+                                <input type="text" placeholder="选择时间" class="mtd-input"> <span
+                                    class="mtd-input-suffix-inner"><i class="mtdicon mtdicon-calendar-o"></i></span>
+                                <!----></div>
+                            <div class="mtd-popper" style="display: none;"><!----> <!----></div>
+                        </div>
+                    </div>
+                    <div data-v-2519a564="" class="reviews-card__filters">
+                        <div data-v-105ee73a="" data-v-2519a564="" class="review-filter"><label data-v-105ee73a=""
+                                class="review-filter__label">星级</label>
+                            <div data-v-105ee73a="" class="review-filter__options">
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 全部 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 好评 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 中评 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 差评 </div>
+                            </div>
+                        </div>
+                        <div data-v-105ee73a="" data-v-2519a564="" class="review-filter"><label data-v-105ee73a=""
+                                class="review-filter__label">回复状态</label>
+                            <div data-v-105ee73a="" class="review-filter__options">
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 全部 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 已回复 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 未回复 </div>
+                            </div>
+                        </div>
+                        <div data-v-105ee73a="" data-v-2519a564="" class="review-filter"><label data-v-105ee73a=""
+                                class="review-filter__label">投诉状态</label>
+                            <div data-v-105ee73a="" class="review-filter__options">
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 全部投诉 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 投诉审核中 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 大众评审中 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 投诉通过 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 投诉失败 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 待补充凭证 </div>
+                            </div>
+                        </div>
+                        <div data-v-105ee73a="" data-v-2519a564="" class="review-filter"><label data-v-105ee73a=""
+                                class="review-filter__label">来源</label>
+                            <div data-v-105ee73a="" class="review-filter__options">
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 全部来源 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 门店评价 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 团购评价 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 预订评价 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 闪惠评价 </div>
+                                <div data-v-105ee73a="" class="review-filter__option"><!----> 其他评价 </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div data-v-2519a564="" class="reviews-list">
+                        <div data-v-641b4dac="" data-v-2519a564="" class="review-item">
+                            <div data-v-641b4dac="" class="review-item__header"><img data-v-641b4dac=""
+                                    src="http://p1.meituan.net/dpgroup/40d654f85e4ca6583db6c141873edfd129040.png"
+                                    class="review-item__avatar">
+                                <div data-v-641b4dac="" class="review-item__info">
+                                    <div data-v-641b4dac="" class="review-item__name">匿名用户</div>
+                                    <div data-v-641b4dac="" class="review-item__shop"><a data-v-641b4dac=""
+                                            href="//www.dianping.com/shop/1831218295" target="_blank"
+                                            class="review-item__shop-link">享鑫殿盲人按摩（刘家窑店）</a></div>
+                                </div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__rating-row"><span data-v-641b4dac=""
+                                    class="comment-star review-item__rate comment-rank50"></span>
+                                <div data-v-641b4dac="" class="review-item__dimensions"><span data-v-641b4dac=""
+                                        class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">技师</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">服务</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">环境</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__comment">环境很好，床是当面铺的，房间里没有任何异味
+                                8号姐姐给我按的，肌肉放松和穴位点压都很精准
+                                一摸还知道我健身哈哈哈哈，被姐姐夸看着显瘦一摸就有肉还有弹性，开心</div>
+                            <div data-v-641b4dac="" class="review-item__images">
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/c70vUhkFz7LxabINFvqZcJZT3DegUEFqFr---QYdInhxhrmlSTKYtsP6pydToFikxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/5bkkp2QnPdPo-Nx-3KIXPjwUK8PuKBqohF2qzQtoO65bUKcqfYmoV1LZMRGz3FwBxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/HnG89n79jvgg8V8DpPFpktlOSsrX3Ry6b6xyILMulIc7xTvedz2_VyYhFaCyCUDMxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__time"> 发布于2026-04-23 13:30 <span
+                                    data-v-641b4dac=""
+                                    style="margin-left: 8px; font-size: 12px; color: rgb(255, 102, 51);">线上消费后评价</span>
+                            </div><!---->
+                            <div data-v-641b4dac="" class="review-item__actions"><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/0f6c87ae4b58967878d8b12f6625e9dd396.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">投诉评价</span></span></button><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/03e98b8da2bd6fccfeb63d2fe943f16f457.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">回复</span></span></button></div><!----><!---->
+                            <div data-v-641b4dac="" class="review-item__divider"></div>
+                            <div data-v-641b4dac="" class="image-preview-modal">
+                                <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                                <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                                    <div class="mtd-modal" style="width: 600px; display: none;"><span
+                                            class="mtd-modal-close"><i class="mtdicon mtdicon-close-thick"></i></span>
+                                        <!---->
+                                        <div class="mtd-modal-content-wrapper">
+                                            <div class="mtd-modal-content"><!---->
+                                                <div data-v-641b4dac="" class="image-preview-content">
+                                                    <div data-v-641b4dac="" class="show-big-case"><i data-v-641b4dac=""
+                                                            class="case-img mtdicon mtdicon-home-o"></i>投诉 </div><img
+                                                        data-v-641b4dac="" alt="preview"
+                                                        style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                                                </div> <!---->
+                                            </div>
+                                        </div> <!---->
+                                    </div>
+                                </div>
+                            </div><!---->
+                        </div>
+                        <div data-v-641b4dac="" data-v-2519a564="" class="review-item">
+                            <div data-v-641b4dac="" class="review-item__header"><img data-v-641b4dac=""
+                                    src="https://p0.meituan.net/ingee/f95cd36981b06ee504c0aebf35e544d99257.png%4048w_48h_1e_1c_1l%7Cwatermark%3D0"
+                                    class="review-item__avatar">
+                                <div data-v-641b4dac="" class="review-item__info">
+                                    <div data-v-641b4dac="" class="review-item__name">点小评2811941569</div>
+                                    <div data-v-641b4dac="" class="review-item__shop"><a data-v-641b4dac=""
+                                            href="//www.dianping.com/shop/1831218295" target="_blank"
+                                            class="review-item__shop-link">享鑫殿盲人按摩（刘家窑店）</a></div>
+                                </div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__rating-row"><span data-v-641b4dac=""
+                                    class="comment-star review-item__rate comment-rank50"></span>
+                                <div data-v-641b4dac="" class="review-item__dimensions"><span data-v-641b4dac=""
+                                        class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">技师</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">服务</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">环境</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__comment">8号阿姨手法很好，按完很轻松舒服</div>
+                            <div data-v-641b4dac="" class="review-item__images">
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/BVKOu3FGRssf6PU1vpMX_n6QPDDe8WYovoi_JfXLdZHljh9ohj8sCkK_esZ4jEb4xz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/Y0HwTfqlIdj2e--AuIBMsvXbNGrwQroS0oI78wyRV3lawQBHGfYsex3y-Z3_EnYKxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/wgEURzEHWm4TPLZWzi5soIE_asid3mDHbYJTwEOG0l4BeuUQ4iAnvaI-VWYaCgnKxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__time"> 发布于2026-04-22 16:55 <span
+                                    data-v-641b4dac=""
+                                    style="margin-left: 8px; font-size: 12px; color: rgb(255, 102, 51);">线上消费后评价</span>
+                            </div><!---->
+                            <div data-v-641b4dac="" class="review-item__actions"><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/0f6c87ae4b58967878d8b12f6625e9dd396.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">投诉评价</span></span></button><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/03e98b8da2bd6fccfeb63d2fe943f16f457.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">回复</span></span></button></div><!----><!---->
+                            <div data-v-641b4dac="" class="review-item__divider"></div>
+                            <div data-v-641b4dac="" class="image-preview-modal">
+                                <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                                <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                                    <div class="mtd-modal" style="width: 600px; display: none;"><span
+                                            class="mtd-modal-close"><i class="mtdicon mtdicon-close-thick"></i></span>
+                                        <!---->
+                                        <div class="mtd-modal-content-wrapper">
+                                            <div class="mtd-modal-content"><!---->
+                                                <div data-v-641b4dac="" class="image-preview-content">
+                                                    <div data-v-641b4dac="" class="show-big-case"><i data-v-641b4dac=""
+                                                            class="case-img mtdicon mtdicon-home-o"></i>投诉 </div><img
+                                                        data-v-641b4dac="" alt="preview"
+                                                        style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                                                </div> <!---->
+                                            </div>
+                                        </div> <!---->
+                                    </div>
+                                </div>
+                            </div><!---->
+                        </div>
+                        <div data-v-641b4dac="" data-v-2519a564="" class="review-item">
+                            <div data-v-641b4dac="" class="review-item__header"><img data-v-641b4dac=""
+                                    src="http://p1.meituan.net/dpgroup/40d654f85e4ca6583db6c141873edfd129040.png"
+                                    class="review-item__avatar">
+                                <div data-v-641b4dac="" class="review-item__info">
+                                    <div data-v-641b4dac="" class="review-item__name">匿名用户</div>
+                                    <div data-v-641b4dac="" class="review-item__shop"><a data-v-641b4dac=""
+                                            href="//www.dianping.com/shop/1831218295" target="_blank"
+                                            class="review-item__shop-link">享鑫殿盲人按摩（刘家窑店）</a></div>
+                                </div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__rating-row"><span data-v-641b4dac=""
+                                    class="comment-star review-item__rate comment-rank50"></span>
+                                <div data-v-641b4dac="" class="review-item__dimensions"><span data-v-641b4dac=""
+                                        class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">技师</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">服务</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">环境</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__comment">61号老师手法非常到位，专业，店内接待人员热情周到，环境很好。</div>
+                            <div data-v-641b4dac="" class="review-item__images">
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/8Ly7KP2-K7DKbG3daOZHrpCBciayViDKSFNEu4hUbtHfgfjlRQ5YwVmZxFtAcRxPxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/ukmOMiWFC-FtMXTiXWtC09icDW--SaW6HdHei38tEdN4NEXBQ4BU_GOK3jK6Li4fxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/67k7Zz4PGkzrZzlNc3SUE5M6d3qG4xazQ2UHKoJOP-Jt_UvsgXuHQDe3kL0PkeVCxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__time"> 发布于2026-04-21 22:39 <span
+                                    data-v-641b4dac=""
+                                    style="margin-left: 8px; font-size: 12px; color: rgb(255, 102, 51);">线上消费后评价</span>
+                            </div><!---->
+                            <div data-v-641b4dac="" class="review-item__actions"><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/0f6c87ae4b58967878d8b12f6625e9dd396.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">投诉评价</span></span></button><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/03e98b8da2bd6fccfeb63d2fe943f16f457.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">回复</span></span></button></div><!----><!---->
+                            <div data-v-641b4dac="" class="review-item__divider"></div>
+                            <div data-v-641b4dac="" class="image-preview-modal">
+                                <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                                <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                                    <div class="mtd-modal" style="width: 600px; display: none;"><span
+                                            class="mtd-modal-close"><i class="mtdicon mtdicon-close-thick"></i></span>
+                                        <!---->
+                                        <div class="mtd-modal-content-wrapper">
+                                            <div class="mtd-modal-content"><!---->
+                                                <div data-v-641b4dac="" class="image-preview-content">
+                                                    <div data-v-641b4dac="" class="show-big-case"><i data-v-641b4dac=""
+                                                            class="case-img mtdicon mtdicon-home-o"></i>投诉 </div><img
+                                                        data-v-641b4dac="" alt="preview"
+                                                        style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                                                </div> <!---->
+                                            </div>
+                                        </div> <!---->
+                                    </div>
+                                </div>
+                            </div><!---->
+                        </div>
+                        <div data-v-641b4dac="" data-v-2519a564="" class="review-item">
+                            <div data-v-641b4dac="" class="review-item__header"><img data-v-641b4dac=""
+                                    src="https://p1.meituan.net/userheadpicbackend/025d92052d699f20cf8c455634a8dc3c18776.jpg%4048w_48h_1e_1c_1l%7Cwatermark%3D0"
+                                    class="review-item__avatar">
+                                <div data-v-641b4dac="" class="review-item__info">
+                                    <div data-v-641b4dac="" class="review-item__name">大太爷爷</div>
+                                    <div data-v-641b4dac="" class="review-item__shop"><a data-v-641b4dac=""
+                                            href="//www.dianping.com/shop/1831218295" target="_blank"
+                                            class="review-item__shop-link">享鑫殿盲人按摩（刘家窑店）</a></div>
+                                </div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__rating-row"><span data-v-641b4dac=""
+                                    class="comment-star review-item__rate comment-rank50"></span>
+                                <div data-v-641b4dac="" class="review-item__dimensions"><span data-v-641b4dac=""
+                                        class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">技师</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">服务</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">环境</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__comment">
+                                33号师傅手法专业。第1次来体验很好。店内环境干净卫生。下次还会再次光临。推荐推荐推荐。</div>
+                            <div data-v-641b4dac="" class="review-item__images">
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://img.meituan.net/ugcpic/5fb94fe4d3d0611f384600913f6ee9e1996257.jpg%40300w_300h_1e_1c_1l%7Cwatermark%3D1%26%26r%3D1%26p%3D9%26x%3D2%26y%3D2%26relative%3D1%26o%3D20"
+                                        class="review-item__image"><!----></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__time"> 发布于2026-04-21 20:15 <span
+                                    data-v-641b4dac=""
+                                    style="margin-left: 8px; font-size: 12px; color: rgb(255, 102, 51);">线上消费后评价</span>
+                            </div><!---->
+                            <div data-v-641b4dac="" class="review-item__actions"><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/0f6c87ae4b58967878d8b12f6625e9dd396.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">投诉评价</span></span></button><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/03e98b8da2bd6fccfeb63d2fe943f16f457.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">回复</span></span></button></div><!----><!---->
+                            <div data-v-641b4dac="" class="review-item__divider"></div>
+                            <div data-v-641b4dac="" class="image-preview-modal">
+                                <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                                <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                                    <div class="mtd-modal" style="width: 600px; display: none;"><span
+                                            class="mtd-modal-close"><i class="mtdicon mtdicon-close-thick"></i></span>
+                                        <!---->
+                                        <div class="mtd-modal-content-wrapper">
+                                            <div class="mtd-modal-content"><!---->
+                                                <div data-v-641b4dac="" class="image-preview-content">
+                                                    <div data-v-641b4dac="" class="show-big-case"><i data-v-641b4dac=""
+                                                            class="case-img mtdicon mtdicon-home-o"></i>投诉 </div><img
+                                                        data-v-641b4dac="" alt="preview"
+                                                        style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                                                </div> <!---->
+                                            </div>
+                                        </div> <!---->
+                                    </div>
+                                </div>
+                            </div><!---->
+                        </div>
+                        <div data-v-641b4dac="" data-v-2519a564="" class="review-item">
+                            <div data-v-641b4dac="" class="review-item__header"><img data-v-641b4dac=""
+                                    src="https://p0.meituan.net/userheadpicbackend/a0f9005be3c8035a0d6485b5a54d5c2a3647.jpg%4048w_48h_1e_1c_1l%7Cwatermark%3D0"
+                                    class="review-item__avatar">
+                                <div data-v-641b4dac="" class="review-item__info">
+                                    <div data-v-641b4dac="" class="review-item__name">轻柔清新咕吱蛛</div>
+                                    <div data-v-641b4dac="" class="review-item__shop"><a data-v-641b4dac=""
+                                            href="//www.dianping.com/shop/1831218295" target="_blank"
+                                            class="review-item__shop-link">享鑫殿盲人按摩（刘家窑店）</a></div>
+                                </div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__rating-row"><span data-v-641b4dac=""
+                                    class="comment-star review-item__rate comment-rank50"></span>
+                                <div data-v-641b4dac="" class="review-item__dimensions"><span data-v-641b4dac=""
+                                        class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">技师</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">服务</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">环境</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__comment">环境可以，技术手法好，36号童老师很不错
+                                [服务]技师手法：按摩完很轻松
+                                [过程]擅长项目：肩颈按摩</div>
+                            <div data-v-641b4dac="" class="review-item__images">
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/mQX8uH9sFd2gzaEcgSWMdBC7A9i1zaAj2mafMUYTGQQe8cjaJz-evCzgcrD3zPxuxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/TWAVeSl7U8LYPrYeGfEZUwbe6ap008F62RF71GINdAYdZrVU_uUC2Wne0dPOT-Idxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/0u7o7BJFAkFZQX1r--iN5fBQHUMtaOX-jCPyOS8_teNLcCiEmBLUdfodPh_wUv-Mxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__time"> 发布于2026-04-18 19:48 <span
+                                    data-v-641b4dac=""
+                                    style="margin-left: 8px; font-size: 12px; color: rgb(255, 102, 51);">线上消费后评价</span>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__fold-entry"><span
+                                    data-v-641b4dac="">Ta在该门店的其他评价</span><span data-v-641b4dac=""
+                                    class="review-item__fold-entry-count"> （1条） </span><i data-v-641b4dac=""
+                                    class="mtdicon mtdicon-right review-item__fold-entry-icon"></i></div>
+                            <div data-v-641b4dac="" class="review-item__actions"><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/0f6c87ae4b58967878d8b12f6625e9dd396.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">投诉评价</span></span></button><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/03e98b8da2bd6fccfeb63d2fe943f16f457.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">回复</span></span></button></div><!----><!---->
+                            <div data-v-641b4dac="" class="review-item__divider"></div>
+                            <div data-v-641b4dac="" class="image-preview-modal">
+                                <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                                <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                                    <div class="mtd-modal" style="width: 600px; display: none;"><span
+                                            class="mtd-modal-close"><i class="mtdicon mtdicon-close-thick"></i></span>
+                                        <!---->
+                                        <div class="mtd-modal-content-wrapper">
+                                            <div class="mtd-modal-content"><!---->
+                                                <div data-v-641b4dac="" class="image-preview-content">
+                                                    <div data-v-641b4dac="" class="show-big-case"><i data-v-641b4dac=""
+                                                            class="case-img mtdicon mtdicon-home-o"></i>投诉 </div><img
+                                                        data-v-641b4dac="" alt="preview"
+                                                        style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                                                </div> <!---->
+                                            </div>
+                                        </div> <!---->
+                                    </div>
+                                </div>
+                            </div><!---->
+                        </div>
+                        <div data-v-641b4dac="" data-v-2519a564="" class="review-item">
+                            <div data-v-641b4dac="" class="review-item__header"><img data-v-641b4dac=""
+                                    src="http://p1.meituan.net/dpgroup/40d654f85e4ca6583db6c141873edfd129040.png"
+                                    class="review-item__avatar">
+                                <div data-v-641b4dac="" class="review-item__info">
+                                    <div data-v-641b4dac="" class="review-item__name">匿名用户</div>
+                                    <div data-v-641b4dac="" class="review-item__shop"><a data-v-641b4dac=""
+                                            href="//www.dianping.com/shop/1831218295" target="_blank"
+                                            class="review-item__shop-link">享鑫殿盲人按摩（刘家窑店）</a></div>
+                                </div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__rating-row"><span data-v-641b4dac=""
+                                    class="comment-star review-item__rate comment-rank50"></span>
+                                <div data-v-641b4dac="" class="review-item__dimensions"><span data-v-641b4dac=""
+                                        class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">技师</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">服务</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">4.5</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">环境</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__comment">
+                                技师很专业、手法适当，会根据需求调整按摩手法和重点，按完肩颈放松很多，效果明细，店铺环境干净舒适</div>
+                            <div data-v-641b4dac="" class="review-item__images">
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/ctXhhDNGp6JrF3ZKg-IOMThMWWtAUlgkTYKQIb3ykBzQBztwaqOtPu3FCH3C-z3gxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/nr_NmEYanT7r81S0-vSMuFiZ2bAH01yJjewMcgj7-BqM2BYg90ACPaDRx-UPE7OSxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/bE6aEN0-ma4YtJFnXRGpUfRczN0Qvv5bhaZroZsO-wzge4wGMEuDJELaOGQER_TLxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__time"> 发布于2026-04-04 23:01 <span
+                                    data-v-641b4dac=""
+                                    style="margin-left: 8px; font-size: 12px; color: rgb(255, 102, 51);">线上消费后评价</span>
+                            </div><!---->
+                            <div data-v-641b4dac="" class="review-item__actions"><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/0f6c87ae4b58967878d8b12f6625e9dd396.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">投诉评价</span></span></button><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/03e98b8da2bd6fccfeb63d2fe943f16f457.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">回复</span></span></button></div><!----><!---->
+                            <div data-v-641b4dac="" class="review-item__divider"></div>
+                            <div data-v-641b4dac="" class="image-preview-modal">
+                                <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                                <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                                    <div class="mtd-modal" style="width: 600px; display: none;"><span
+                                            class="mtd-modal-close"><i class="mtdicon mtdicon-close-thick"></i></span>
+                                        <!---->
+                                        <div class="mtd-modal-content-wrapper">
+                                            <div class="mtd-modal-content"><!---->
+                                                <div data-v-641b4dac="" class="image-preview-content">
+                                                    <div data-v-641b4dac="" class="show-big-case"><i data-v-641b4dac=""
+                                                            class="case-img mtdicon mtdicon-home-o"></i>投诉 </div><img
+                                                        data-v-641b4dac="" alt="preview"
+                                                        style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                                                </div> <!---->
+                                            </div>
+                                        </div> <!---->
+                                    </div>
+                                </div>
+                            </div><!---->
+                        </div>
+                        <div data-v-641b4dac="" data-v-2519a564="" class="review-item">
+                            <div data-v-641b4dac="" class="review-item__header"><img data-v-641b4dac=""
+                                    src="https://p0.meituan.net/userheadpicbackend/5c433a6aa4a346126da5c1201e9ef6c52632.jpg%4048w_48h_1e_1c_1l%7Cwatermark%3D0"
+                                    class="review-item__avatar">
+                                <div data-v-641b4dac="" class="review-item__info">
+                                    <div data-v-641b4dac="" class="review-item__name">Anson199</div>
+                                    <div data-v-641b4dac="" class="review-item__shop"><a data-v-641b4dac=""
+                                            href="//www.dianping.com/shop/1831218295" target="_blank"
+                                            class="review-item__shop-link">享鑫殿盲人按摩（刘家窑店）</a></div>
+                                </div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__rating-row"><span data-v-641b4dac=""
+                                    class="comment-star review-item__rate comment-rank50"></span>
+                                <div data-v-641b4dac="" class="review-item__dimensions"><span data-v-641b4dac=""
+                                        class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">技师</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">4.5</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">服务</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">4.5</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">环境</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">4.5</span></span></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__comment">
+                                手法专业，服务态度很好👍👍👍👍👍👍👍👍👍👍👍👍👍👍👍👍👍👍👍👍👍👍👍👍✌️✌️✌️✌️✌️</div>
+                            <div data-v-641b4dac="" class="review-item__images">
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/j8L_MT7xV9qh8so-zj2qIfEZPEMi1F18ke_8Zf8WmnB8mg7XAYRl5j7QZgx825dCxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/29Gn87kd0CLGSa85hg2G9mTuuzhTqUCHIdSZzLgb2zJLcCiEmBLUdfodPh_wUv-Mxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/CXcckLbCB-c1GsReIJECMLrzpcL9VhzJ2XLPLk3dZaaM2BYg90ACPaDRx-UPE7OSxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__time"> 发布于2026-04-03 14:05 <span
+                                    data-v-641b4dac=""
+                                    style="margin-left: 8px; font-size: 12px; color: rgb(255, 102, 51);">线上消费后评价</span>
+                            </div><!---->
+                            <div data-v-641b4dac="" class="review-item__actions"><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/0f6c87ae4b58967878d8b12f6625e9dd396.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">投诉评价</span></span></button><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/03e98b8da2bd6fccfeb63d2fe943f16f457.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">回复</span></span></button></div><!----><!---->
+                            <div data-v-641b4dac="" class="review-item__divider"></div>
+                            <div data-v-641b4dac="" class="image-preview-modal">
+                                <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                                <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                                    <div class="mtd-modal" style="width: 600px; display: none;"><span
+                                            class="mtd-modal-close"><i class="mtdicon mtdicon-close-thick"></i></span>
+                                        <!---->
+                                        <div class="mtd-modal-content-wrapper">
+                                            <div class="mtd-modal-content"><!---->
+                                                <div data-v-641b4dac="" class="image-preview-content">
+                                                    <div data-v-641b4dac="" class="show-big-case"><i data-v-641b4dac=""
+                                                            class="case-img mtdicon mtdicon-home-o"></i>投诉 </div><img
+                                                        data-v-641b4dac="" alt="preview"
+                                                        style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                                                </div> <!---->
+                                            </div>
+                                        </div> <!---->
+                                    </div>
+                                </div>
+                            </div><!---->
+                        </div>
+                        <div data-v-641b4dac="" data-v-2519a564="" class="review-item">
+                            <div data-v-641b4dac="" class="review-item__header"><img data-v-641b4dac=""
+                                    src="https://p0.meituan.net/ingee/11fd0c109e12e8dca74228dbda405cc88818.png%4048w_48h_1e_1c_1l%7Cwatermark%3D0"
+                                    class="review-item__avatar">
+                                <div data-v-641b4dac="" class="review-item__info">
+                                    <div data-v-641b4dac="" class="review-item__name">点小评4042726456</div>
+                                    <div data-v-641b4dac="" class="review-item__shop"><a data-v-641b4dac=""
+                                            href="//www.dianping.com/shop/1831218295" target="_blank"
+                                            class="review-item__shop-link">享鑫殿盲人按摩（刘家窑店）</a></div>
+                                </div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__rating-row"><span data-v-641b4dac=""
+                                    class="comment-star review-item__rate comment-rank50"></span>
+                                <div data-v-641b4dac="" class="review-item__dimensions"><span data-v-641b4dac=""
+                                        class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">技师</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">服务</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">环境</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__comment">
+                                [服务]技师手法：非常专业学位按的非常准，按完之后非常舒服，之后还会经常来的。服务态度也特别好，缓解了我的肩颈问题。</div>
+                            <div data-v-641b4dac="" class="review-item__images">
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/kQfRu0VPTQ7NHaKgB-PsWM7Pyxl35XMGKTj83lwX-wzAVzMEJ861pBSYD8SSt4o7xz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/ljKaqCqQL1Q-8NXZBPIHhkiE5j32IpNsqeoiMqzqoHh8mg7XAYRl5j7QZgx825dCxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/4pKq9wAHE1pGl4DgjLFW5EuiXlxpsSmYdS1GXN-vWqOb1TUqX6ExmV0jP3Amd5sVxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__time"> 发布于2026-03-29 20:27 <!----></div><!---->
+                            <div data-v-641b4dac="" class="review-item__actions"><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/0f6c87ae4b58967878d8b12f6625e9dd396.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">投诉评价</span></span></button><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/03e98b8da2bd6fccfeb63d2fe943f16f457.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">回复</span></span></button></div><!----><!---->
+                            <div data-v-641b4dac="" class="review-item__divider"></div>
+                            <div data-v-641b4dac="" class="image-preview-modal">
+                                <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                                <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                                    <div class="mtd-modal" style="width: 600px; display: none;"><span
+                                            class="mtd-modal-close"><i class="mtdicon mtdicon-close-thick"></i></span>
+                                        <!---->
+                                        <div class="mtd-modal-content-wrapper">
+                                            <div class="mtd-modal-content"><!---->
+                                                <div data-v-641b4dac="" class="image-preview-content">
+                                                    <div data-v-641b4dac="" class="show-big-case"><i data-v-641b4dac=""
+                                                            class="case-img mtdicon mtdicon-home-o"></i>投诉 </div><img
+                                                        data-v-641b4dac="" alt="preview"
+                                                        style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                                                </div> <!---->
+                                            </div>
+                                        </div> <!---->
+                                    </div>
+                                </div>
+                            </div><!---->
+                        </div>
+                        <div data-v-641b4dac="" data-v-2519a564="" class="review-item">
+                            <div data-v-641b4dac="" class="review-item__header"><img data-v-641b4dac=""
+                                    src="https://p0.meituan.net/ingee/97784f7ac3ec9124dcf71aa06cf4a50014611.png%4048w_48h_1e_1c_1l%7Cwatermark%3D0"
+                                    class="review-item__avatar">
+                                <div data-v-641b4dac="" class="review-item__info">
+                                    <div data-v-641b4dac="" class="review-item__name">萌小萌_9160</div>
+                                    <div data-v-641b4dac="" class="review-item__shop"><a data-v-641b4dac=""
+                                            href="//www.dianping.com/shop/1831218295" target="_blank"
+                                            class="review-item__shop-link">享鑫殿盲人按摩（刘家窑店）</a></div>
+                                </div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__rating-row"><span data-v-641b4dac=""
+                                    class="comment-star review-item__rate comment-rank50"></span>
+                                <div data-v-641b4dac="" class="review-item__dimensions"><span data-v-641b4dac=""
+                                        class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">技师</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">服务</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">环境</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">5.0</span></span></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__comment">
+                                头疼了好几天，正好孩子在这附近上课外班，来店里约了99号户老师，给我按了头、肩，一个小时后整个头部都很舒服，也不疼了，特别好</div>
+                            <div data-v-641b4dac="" class="review-item__images">
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/7YPs8Pa2xsz4mKN3c7UzQxKl8DiozmDiYq9oTNxDw0z4-NXN10ixjMesrWINTcGGxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/csJdu_wXQdyBWkM6t64Y94QtKHtNruOXDmBIAVErMj-ymWd-txn1jSFT0a-C5-lWxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/RvCv2G5kz8mjQa7XF2yCTsP8acli7CZsgbZR32VjRWN54IVuyITVz6w_KMYeGqrBxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__time"> 发布于2026-03-29 16:19 <span
+                                    data-v-641b4dac=""
+                                    style="margin-left: 8px; font-size: 12px; color: rgb(255, 102, 51);">线上消费后评价</span>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__fold-entry"><span
+                                    data-v-641b4dac="">Ta在该门店的其他评价</span><span data-v-641b4dac=""
+                                    class="review-item__fold-entry-count"> （1条） </span><i data-v-641b4dac=""
+                                    class="mtdicon mtdicon-right review-item__fold-entry-icon"></i></div>
+                            <div data-v-641b4dac="" class="review-item__actions"><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/0f6c87ae4b58967878d8b12f6625e9dd396.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">投诉评价</span></span></button><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/03e98b8da2bd6fccfeb63d2fe943f16f457.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">回复</span></span></button></div><!----><!---->
+                            <div data-v-641b4dac="" class="review-item__divider"></div>
+                            <div data-v-641b4dac="" class="image-preview-modal">
+                                <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                                <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                                    <div class="mtd-modal" style="width: 600px; display: none;"><span
+                                            class="mtd-modal-close"><i class="mtdicon mtdicon-close-thick"></i></span>
+                                        <!---->
+                                        <div class="mtd-modal-content-wrapper">
+                                            <div class="mtd-modal-content"><!---->
+                                                <div data-v-641b4dac="" class="image-preview-content">
+                                                    <div data-v-641b4dac="" class="show-big-case"><i data-v-641b4dac=""
+                                                            class="case-img mtdicon mtdicon-home-o"></i>投诉 </div><img
+                                                        data-v-641b4dac="" alt="preview"
+                                                        style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                                                </div> <!---->
+                                            </div>
+                                        </div> <!---->
+                                    </div>
+                                </div>
+                            </div><!---->
+                        </div>
+                        <div data-v-641b4dac="" data-v-2519a564="" class="review-item">
+                            <div data-v-641b4dac="" class="review-item__header"><img data-v-641b4dac=""
+                                    src="https://p0.meituan.net/ingee/49014a31c4d8bd36d9f01c8bbac5cdc510774.png%4048w_48h_1e_1c_1l%7Cwatermark%3D0"
+                                    class="review-item__avatar">
+                                <div data-v-641b4dac="" class="review-item__info">
+                                    <div data-v-641b4dac="" class="review-item__name">轻灵开朗囔囔猴</div>
+                                    <div data-v-641b4dac="" class="review-item__shop"><a data-v-641b4dac=""
+                                            href="//www.dianping.com/shop/1831218295" target="_blank"
+                                            class="review-item__shop-link">享鑫殿盲人按摩（刘家窑店）</a></div>
+                                </div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__rating-row"><span data-v-641b4dac=""
+                                    class="comment-star review-item__rate comment-rank45"></span>
+                                <div data-v-641b4dac="" class="review-item__dimensions"><span data-v-641b4dac=""
+                                        class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">技师</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">4.5</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">服务</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">4.5</span></span><span
+                                        data-v-641b4dac="" class="review-item__dimension"><span data-v-641b4dac=""
+                                            class="review-item__dimension-label">环境</span><span data-v-641b4dac=""
+                                            class="review-item__dimension-value">4.5</span></span></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__comment">谁按谁知道，早来早享受，路过按一下确实专业，环境不错，服务到位，以后可以常去
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__images">
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/gLOQ_YfbeJ_OMu2CLnsdlrsp_BXYK8-nIekYXfC-bL4_Btsz-zdgdIWG9JCgIjdHxz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                                <div data-v-641b4dac="" class="review-item__media-item"><img data-v-641b4dac=""
+                                        src="https://qcloud.dpfile.com/pc/2iVIlaL4ubl3CeGnJhzc42UFAjUa8quU6SjR9tEVuhsBZTaWnrsmTq3IKGv0oax_xz9b8ZLLVvvmUGXkEAMYLt50GEMuEereRfNEshlxbfVZAF2M70L61B2b9L5fXAGsfXxKbhqJ2JsccffbMm35Kgxxxek7cKy7_R0W-KdxWUk.jpg"
+                                        class="review-item__image"><!----></div>
+                            </div>
+                            <div data-v-641b4dac="" class="review-item__time"> 发布于2026-03-27 12:46 <span
+                                    data-v-641b4dac=""
+                                    style="margin-left: 8px; font-size: 12px; color: rgb(255, 102, 51);">线上消费后评价</span>
+                            </div><!---->
+                            <div data-v-641b4dac="" class="review-item__actions"><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/0f6c87ae4b58967878d8b12f6625e9dd396.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">投诉评价</span></span></button><button data-v-641b4dac=""
+                                    type="button"
+                                    class="review-item__action-btn mtd-btn mtd-btn-secondary mtd-btn-small"><!----><!----><span><img
+                                            data-v-641b4dac=""
+                                            src="https://p0.meituan.net/ingee/03e98b8da2bd6fccfeb63d2fe943f16f457.png"
+                                            class="review-item__action-icon"><span
+                                            data-v-641b4dac="">回复</span></span></button></div><!----><!---->
+                            <div data-v-641b4dac="" class="review-item__divider"></div>
+                            <div data-v-641b4dac="" class="image-preview-modal">
+                                <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                                <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                                    <div class="mtd-modal" style="width: 600px; display: none;"><span
+                                            class="mtd-modal-close"><i class="mtdicon mtdicon-close-thick"></i></span>
+                                        <!---->
+                                        <div class="mtd-modal-content-wrapper">
+                                            <div class="mtd-modal-content"><!---->
+                                                <div data-v-641b4dac="" class="image-preview-content">
+                                                    <div data-v-641b4dac="" class="show-big-case"><i data-v-641b4dac=""
+                                                            class="case-img mtdicon mtdicon-home-o"></i>投诉 </div><img
+                                                        data-v-641b4dac="" alt="preview"
+                                                        style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                                                </div> <!---->
+                                            </div>
+                                        </div> <!---->
+                                    </div>
+                                </div>
+                            </div><!---->
+                        </div>
+                    </div>
+                    <div data-v-2519a564="" class="fold-exist-entry-wrapper"><a data-v-2519a564=""
+                            href="//e.dianping.com/vg-platform-reviewmanage/fold-comments/index.html?shopId=1831218295"
+                            class="fold-exist-entry">根据平台规则，已折叠部分评价 &gt;</a></div>
+                    <div data-v-2519a564="" style="display: flex; justify-content: flex-end; margin-top: 24px;">
+                        <div data-v-2519a564="" class="mtd-pagination  ">
+                            <ul class="mtd-pager">
+                                <li class="mtdicon mtdicon-left-thick mtd-pager-item mtd-pager-prev mtd-pager-disabled">
+                                </li>
+                                <li class="mtd-pager-item mtd-pager-number mtd-pager-active">1</li> <!----> <!---->
+                                <!---->
+                                <li
+                                    class="mtd-pager-item mtd-pager-next mtdicon mtdicon-right-thick mtd-pager-disabled">
+                                </li>
+                            </ul><span class="mtd-pagination-jumper"><span>前往</span><input type="number"
+                                    class="mtd-pagination-jumper-input"></span><span
+                                class="mtd-pagination-total">共10条</span>
+                        </div>
+                    </div>
+                    <div data-v-2519a564="" class="complaint-modal">
+                        <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                        <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                            <div class="mtd-modal" style="width: 420px; display: none;"><span class="mtd-modal-close"><i
+                                        class="mtdicon mtdicon-close-thick"></i></span>
+                                <div class="mtd-modal-header">
+                                    <div class="mtd-modal-title">评价投诉须知</div>
+                                </div>
+                                <div class="mtd-modal-content-wrapper">
+                                    <div class="mtd-modal-content"><!---->
+                                        <div data-v-2519a564="" class="complaint-content">
+                                            <div data-v-2519a564="" class="complaint-title">您正在进入评价投诉流程，每条评价仅能投诉一次。
+                                            </div>
+                                            <div data-v-2519a564="" class="complaint-desc"> 为避免因<span data-v-2519a564=""
+                                                    class="complaint-highlight">投诉类型误选、描述不清晰、证据不相关等</span>，导致平台无法受理，浪费您的投诉次数，请确保您已充分了解:
+                                            </div><span data-v-2519a564="" class="complaint-link">《评价投诉指引》</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mtd-modal-footer">
+                                    <div data-v-2519a564="" class="complaint-footer"><label data-v-2519a564=""
+                                            class="mtd-checkbox"><input type="checkbox" class="mtd-checkbox-input"
+                                                style="display: none;"> <span
+                                                class="mtd-checkbox-inner"><!----></span><span
+                                                class="mtd-checkbox-text">30天内不再提醒</span></label>
+                                        <div data-v-2519a564="" class="complaint-buttons"><button data-v-2519a564=""
+                                                type="button"
+                                                class="complaint-cancel mtd-btn"><!----><!----><span>取消</span></button><button
+                                                data-v-2519a564="" type="button"
+                                                class="complaint-next mtd-btn"><!----><!----><span>阅读完成，进入下一步</span></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div data-v-2519a564="" class="complaint-modal">
+                        <div class="mtd-modal-mask" style="z-index: 2000; display: none;"></div>
+                        <div class="mtd-modal-wrapper mtd-modal-center" style="z-index: 2000; display: none;">
+                            <div class="mtd-modal" style="width: 600px; display: none;"><span class="mtd-modal-close"><i
+                                        class="mtdicon mtdicon-close-thick"></i></span>
+                                <div class="mtd-modal-header">
+                                    <div class="mtd-modal-title">评价投诉须知</div>
+                                </div>
+                                <div class="mtd-modal-content-wrapper">
+                                    <div class="mtd-modal-content"><!---->
+                                        <div data-v-2519a564="" class="complaint-content">
+                                            <div data-v-2519a564=""> 您正在进入评价投诉流程，每条评价仅能投诉一次。<br data-v-2519a564="">
+                                                为避免因<strong
+                                                    data-v-2519a564="">投诉类型误选、描述不清晰、证据不相关等</strong>，导致平台无法受理，浪费您的投诉次数，请确保您已充分了解:
+                                                <span data-v-2519a564=""
+                                                    style="cursor: pointer; color: rgb(10, 112, 244);">《评价投诉指引》</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mtd-modal-footer">
+                                    <div data-v-2519a564="" class="complaint-footer"><button data-v-2519a564=""
+                                            type="button"
+                                            class="complaint-cancel mtd-btn"><!----><!----><span>取消</span></button><button
+                                            data-v-2519a564="" type="button"
+                                            class="complaint-confirm mtd-btn mtd-btn-primary"><!----><!----><span>阅读完成，进入下一步</span></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div data-v-2519a564="" class="fold-review-drawer">
+                        <div class="mtd-drawer-mask" style="z-index: 2000; display: none;"></div> <!---->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script crossorigin="anonymous" src="//www.dpfile.com/app/owl/static/owl_1.10.0.js"></script>
+    <script src="https://appsec-mobile.meituan.com/h5guard/H5guard.js"></script>
+    <script src="https://rcf.meituan.com/sdk/web/master/rcf-metrics-sdk-latest.umd.js"></script>
+    <script>Owl && Owl.start({
+            project: 'com.sankuai.gcfe.vg.platformreview',
+            devMode: false,
+            pageUrl: location.href,
+            enableLogTrace: true, // 开启串联后端链路能力
+            isSPA: true,
+            autoCatch: {
+                fetch: true,
+            },
+            enableLogTrace: true,
+            page: {
+                auto: true,
+                sensoryIndex: true, // 指标收集开关
+                sample: 1,
+            },
+            resource: {
+                sampleApi: 1,
+            },
+        })</script>
+    <script src="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/vendors.01c81db6.js"></script>
+    <script src="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/commons.a0b15863.js"></script>
+    <script src="//awp-assets.meituan.net/nibfe/vg-platform-reviewmanage/js/rating-management.cc45ed56.js"></script>
+    <script src="//analytics.meituan.net/analytics.js" type="text/javascript" charset="utf-8" async=""
+        defer=""></script>
+</body>
+
+</html>

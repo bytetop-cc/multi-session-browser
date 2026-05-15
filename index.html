@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Multi-Session Browser</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #202124;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      height: 80px;
+      background: #202124;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 标签栏 - 横向展开 */
+    .tab-bar {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      padding: 4px 8px;
+      background: #292b2e;
+      overflow-x: auto;
+    }
+
+    .tab-bar::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .tab-bar::-webkit-scrollbar-thumb {
+      background: #5f6368;
+      border-radius: 2px;
+    }
+
+    #tabs {
+      display: flex;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 12px;
+      background: #3c4043;
+      border-radius: 8px 8px 0 0;
+      margin-right: 2px;
+      cursor: pointer;
+      flex: 1;
+      min-width: 100px;
+      max-width: 240px;
+      position: relative;
+    }
+
+    .tab.active {
+      background: #202124;
+    }
+
+    .tab-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      margin-right: 8px;
+    }
+
+    .tab-title-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #8ab4f8;
+      color: #fff;
+      font-size: 12px;
+      outline: none;
+      margin-right: 8px;
+      padding: 2px 0;
+    }
+
+    .tab-close {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      opacity: 0.6;
+      flex-shrink: 0;
+    }
+
+    .tab-close:hover {
+      background: rgba(255,255,255,0.1);
+      opacity: 1;
+    }
+
+    /* 差评红灯闪烁 */
+    .tab-alert {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ea4335;
+      margin-right: 6px;
+      flex-shrink: 0;
+      animation: blink 1s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .tab-session {
+      font-size: 9px;
+      color: #8ab4f8;
+      margin-left: 4px;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+
+    .new-tab-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      margin-left: 8px;
+      flex-shrink: 0;
+    }
+
+    .new-tab-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .settings-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      margin-left: 8px;
+      flex-shrink: 0;
+    }
+
+    .settings-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* 地址栏 */
+    .address-bar {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      gap: 4px;
+    }
+
+    .nav-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      background: transparent;
+      border: none;
+      color: #fff;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .auto-btn.active {
+      background: #1a73e8;
+    }
+
+    .auto-btn.running {
+      background: #c5221f;
+    }
+
+    .url-input {
+      flex: 1;
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 16px;
+      border: none;
+      background: #3c4043;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .url-input:focus {
+      background: #292b2e;
+      box-shadow: 0 0 0 2px #8ab4f8;
+    }
+
+    .session-badge {
+      padding: 4px 8px;
+      background: #1a73e8;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    /* 自动化面板 */
+    .auto-panel {
+      position: absolute;
+      right: 8px;
+      top: 80px;
+      width: 320px;
+      background: #292b2e;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 9999;
+      display: none;
+      overflow: hidden;
+    }
+
+    .auto-panel.show {
+      display: block;
+    }
+
+    .auto-panel-header {
+      padding: 16px;
+      background: #202124;
+      border-bottom: 1px solid #3c4043;
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .auto-panel-body {
+      padding: 16px;
+    }
+
+    .auto-task {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background: #3c4043;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+
+    .auto-task:last-child {
+      margin-bottom: 0;
+    }
+
+    .auto-task-info {
+      flex: 1;
+    }
+
+    .auto-task-name {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .auto-task-desc {
+      font-size: 12px;
+      color: #9aa0a6;
+    }
+
+    .auto-task-status {
+      font-size: 11px;
+      color: #34a853;
+      margin-top: 4px;
+    }
+
+    .auto-task-status.error {
+      color: #ea4335;
+    }
+
+    /* 开关样式 */
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+      margin-left: 12px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .switch-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #5f6368;
+      transition: 0.3s;
+      border-radius: 24px;
+    }
+
+    .switch-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    .switch input:checked + .switch-slider {
+      background-color: #1a73e8;
+    }
+
+    .switch input:checked + .switch-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* 差评提醒弹窗 */
+    .bad-review-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10050;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+    }
+
+    .bad-review-modal.show {
+      display: flex;
+    }
+
+    .bad-review-dialog {
+      width: min(440px, calc(100vw - 32px));
+      max-height: min(72vh, 520px);
+      background: #292b2e;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+      border: 1px solid #3c4043;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .bad-review-dialog-header {
+      padding: 16px 18px;
+      background: #202124;
+      border-bottom: 1px solid #3c4043;
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bad-review-dialog-header .icon {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ea4335;
+      flex-shrink: 0;
+      animation: blink 1s ease-in-out infinite;
+    }
+
+    .bad-review-dialog-body {
+      padding: 16px 18px;
+      overflow-y: auto;
+      font-size: 14px;
+      color: #e8eaed;
+      line-height: 1.5;
+    }
+
+    .bad-review-dialog-body .summary {
+      color: #9aa0a6;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .bad-review-dialog-body ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .bad-review-dialog-body li {
+      margin-bottom: 8px;
+    }
+
+    .bad-review-dialog-footer {
+      padding: 12px 18px 16px;
+      border-top: 1px solid #3c4043;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .bad-review-dialog-btn {
+      padding: 8px 20px;
+      border-radius: 8px;
+      border: none;
+      background: #1a73e8;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .bad-review-dialog-btn:hover {
+      background: #1967d2;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="tab-bar">
+      <div id="tabs"></div>
+      <div class="new-tab-btn" onclick="createNewTab()">+</div>
+      <div class="settings-btn" onclick="openSettings()" title="设置">⚙</div>
+    </div>
+    <div class="address-bar">
+      <button class="nav-btn" onclick="goBack()">←</button>
+      <button class="nav-btn" onclick="goForward()">→</button>
+      <button class="nav-btn" onclick="reload()">↻</button>
+      <input type="text" class="url-input" id="urlInput" placeholder="输入网址..." onkeydown="onUrlKeydown(event)">
+      <button class="nav-btn" onclick="openDevTools()" title="开发者工具">🔧</button>
+      <button class="nav-btn auto-btn" id="autoBtn" onclick="toggleAutoPanel()" title="自动化任务">🤖</button>
+      <span class="session-badge" id="sessionBadge">-</span>
+    </div>
+  </div>
+
+  <!-- 自动化面板 -->
+  <div class="auto-panel" id="autoPanel">
+    <div class="auto-panel-header">自动化任务</div>
+    <div class="auto-panel-body">
+      <div class="auto-task">
+        <div class="auto-task-info">
+          <div class="auto-task-name">差评监控</div>
+          <div class="auto-task-desc">对每个已打开标签依次执行相同检查（会话独立）</div>
+          <div class="auto-task-status" id="badReviewStatus"></div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="badReviewSwitch" onchange="toggleBadReviewMonitor()">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div class="auto-task">
+        <div class="auto-task-info">
+          <div class="auto-task-name">好评自动回复</div>
+          <div class="auto-task-desc">从设置中各门店模板随机选用；对每个已打开标签各执行一遍</div>
+          <div class="auto-task-status" id="goodReviewStatus"></div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="goodReviewSwitch" onchange="toggleGoodReviewReply()">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="bad-review-modal" id="badReviewModal" aria-modal="true" role="dialog">
+    <div class="bad-review-dialog" onclick="event.stopPropagation()">
+      <div class="bad-review-dialog-header">
+        <span class="icon" aria-hidden="true"></span>
+        <span id="badReviewModalTitle">差评提醒</span>
+      </div>
+      <div class="bad-review-dialog-body" id="badReviewModalBody"></div>
+      <div class="bad-review-dialog-footer">
+        <button type="button" class="bad-review-dialog-btn" onclick="closeBadReviewModal()">知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron')
+
+    let tabs = []
+    let activeTabId = null
+    let editingTabId = null
+
+    // 创建新标签页
+    async function createNewTab(url) {
+      const result = await ipcRenderer.invoke('new-tab', url)
+      const sessionNum = result.tabId.split('-')[1]
+
+      tabs.push({
+        id: result.tabId,
+        partition: result.partition,
+        title: '新标签页',
+        customName: '',  // 用户自定义名称
+        url: url,
+        sessionNum: sessionNum,
+        hasBadReview: false,
+        badReviewCount: 0
+      })
+
+      activeTabId = result.tabId
+      renderTabs()
+      updateAddressBar()
+    }
+
+    // 切换标签页
+    async function switchTab(tabId) {
+      if (editingTabId) return  // 编辑中不切换
+      await ipcRenderer.invoke('switch-tab', tabId)
+      activeTabId = tabId
+
+      renderTabs()
+      updateAddressBar()
+    }
+
+    // 关闭标签页
+    async function closeTab(tabId, e) {
+      e.stopPropagation()
+      await ipcRenderer.invoke('close-tab', tabId)
+
+      const idx = tabs.findIndex(t => t.id === tabId)
+      tabs = tabs.filter(t => t.id !== tabId)
+
+      if (tabs.length === 0) {
+        createNewTab()
+      } else if (activeTabId === tabId) {
+        const newIdx = Math.min(idx, tabs.length - 1)
+        switchTab(tabs[newIdx].id)
+      } else {
+        renderTabs()
+      }
+    }
+
+    // 双击编辑标签名
+    function startEditTab(tabId, e) {
+      e.stopPropagation()
+      editingTabId = tabId
+      renderTabs()
+
+      // 聚焦输入框
+      setTimeout(() => {
+        const input = document.getElementById(`edit-${tabId}`)
+        if (input) {
+          input.focus()
+          input.select()
+        }
+      }, 0)
+    }
+
+    // 完成编辑
+    function finishEditTab(tabId, newName) {
+      const tab = tabs.find(t => t.id === tabId)
+      if (tab) {
+        tab.customName = newName.trim()
+      }
+      editingTabId = null
+      renderTabs()
+    }
+
+    // 编辑输入框事件
+    function onEditKeydown(tabId, e) {
+      if (e.key === 'Enter') {
+        finishEditTab(tabId, e.target.value)
+      } else if (e.key === 'Escape') {
+        editingTabId = null
+        renderTabs()
+      }
+    }
+
+    function onEditBlur(tabId, e) {
+      finishEditTab(tabId, e.target.value)
+    }
+
+    // 获取显示名称
+    function getDisplayName(tab) {
+      return tab.customName || tab.title
+    }
+
+    // 渲染标签页
+    function renderTabs() {
+      const container = document.getElementById('tabs')
+      container.innerHTML = tabs.map(tab => {
+        const isEditing = editingTabId === tab.id
+        const displayName = getDisplayName(tab)
+
+        if (isEditing) {
+          const alertHtml = tab.hasBadReview
+            ? `<span class="tab-alert" title="${tab.badReviewCount ? '发现差评（' + tab.badReviewCount + '条）' : '发现差评'}"></span>`
+            : ''
+          return `
+            <div class="tab ${tab.id === activeTabId ? 'active' : ''}" onclick="switchTab('${tab.id}')">
+              ${alertHtml}
+              <input type="text"
+                id="edit-${tab.id}"
+                class="tab-title-input"
+                value="${displayName}"
+                onkeydown="onEditKeydown('${tab.id}', event)"
+                onblur="onEditBlur('${tab.id}', event)"
+                onclick="event.stopPropagation()">
+              <span class="tab-session">#${tab.sessionNum}</span>
+              <span class="tab-close" onclick="closeTab('${tab.id}', event)">×</span>
+            </div>
+          `
+        }
+
+        const alertTitle = tab.hasBadReview
+          ? (tab.badReviewCount ? '发现差评（' + tab.badReviewCount + '条）' : '发现差评')
+          : ''
+        return `
+          <div class="tab ${tab.id === activeTabId ? 'active' : ''}" onclick="switchTab('${tab.id}')">
+            ${tab.hasBadReview ? '<span class="tab-alert" title="' + alertTitle.replace(/"/g, '&quot;') + '"></span>' : ''}
+            <span class="tab-title" ondblclick="startEditTab('${tab.id}', event)">${displayName}</span>
+            <span class="tab-session">#${tab.sessionNum}</span>
+            <span class="tab-close" onclick="closeTab('${tab.id}', event)">×</span>
+          </div>
+        `
+      }).join('')
+    }
+
+    // 更新地址栏
+    function updateAddressBar() {
+      const tab = tabs.find(t => t.id === activeTabId)
+      if (tab) {
+        document.getElementById('urlInput').value = tab.url || ''
+        const name = tab.customName || `Session #${tab.sessionNum}`
+        document.getElementById('sessionBadge').textContent = name
+      }
+    }
+
+    // 导航
+    async function navigate(url) {
+      if (!activeTabId) return
+      await ipcRenderer.invoke('navigate', { tabId: activeTabId, url })
+    }
+
+    function onUrlKeydown(e) {
+      if (e.key === 'Enter') {
+        navigate(e.target.value)
+      }
+    }
+
+    async function goBack() {
+      if (activeTabId) await ipcRenderer.invoke('go-back', activeTabId)
+    }
+
+    async function goForward() {
+      if (activeTabId) await ipcRenderer.invoke('go-forward', activeTabId)
+    }
+
+    async function reload() {
+      if (activeTabId) await ipcRenderer.invoke('reload', activeTabId)
+    }
+
+    async function openDevTools() {
+      if (activeTabId) await ipcRenderer.invoke('open-devtools', activeTabId)
+    }
+
+    async function openSettings() {
+      await ipcRenderer.invoke('open-settings')
+    }
+
+    // 监听标签页更新
+    ipcRenderer.on('tab-title-updated', (event, { tabId, title }) => {
+      const tab = tabs.find(t => t.id === tabId)
+      if (tab) {
+        tab.title = title
+        // 只有没有自定义名称时才更新显示
+        if (!tab.customName) {
+          renderTabs()
+        }
+      }
+    })
+
+    ipcRenderer.on('tab-url-updated', (event, { tabId, url }) => {
+      const tab = tabs.find(t => t.id === tabId)
+      if (tab) {
+        tab.url = url
+        if (tabId === activeTabId) {
+          document.getElementById('urlInput').value = url
+        }
+      }
+    })
+
+    async function showBadReviewModal(totalCount, details, tabId, violations) {
+      const label = tabId ? tabSessionLabel(tabId) : ''
+      const titleEl = document.getElementById('badReviewModalTitle')
+      
+      const hasViolations = violations && violations.length > 0;
+      if (titleEl) {
+        let titleText = hasViolations && totalCount === 0 ? '违规预警' : (hasViolations && totalCount > 0 ? '差评 & 违规预警' : '差评提醒');
+        titleEl.textContent = label ? `${titleText} · 标签 ${label}` : titleText
+      }
+      const bodyEl = document.getElementById('badReviewModalBody')
+      bodyEl.textContent = ''
+      const p = document.createElement('p')
+      p.className = 'summary'
+      
+      let text = '';
+      if (totalCount > 0) text += `共发现 ${totalCount} 条差评`;
+      if (hasViolations) text += (text ? '，以及 ' : '发现 ') + `${violations.length} 条违规预警`;
+      
+      p.textContent = label ? `本标签页内${text}，涉及以下门店：` : `${text}，涉及以下门店：`
+      bodyEl.appendChild(p)
+      const ul = document.createElement('ul')
+      for (const d of details || []) {
+        const li = document.createElement('li')
+        const shop = d.shop != null ? String(d.shop) : '未知门店'
+        const n = typeof d.count === 'number' ? d.count : 0
+        li.textContent = `${shop}：${n} 条`
+        ul.appendChild(li)
+      }
+      if (hasViolations) {
+        for (const v of violations) {
+          const li = document.createElement('li')
+          li.innerHTML = `<span style="color:#ea4335">⚠ ${v.shop}</span>：${v.badge ? v.badge + ' - ' : ''}${v.desc || v.title}`
+          ul.appendChild(li)
+        }
+      }
+      if ((!details || details.length === 0) && !hasViolations) {
+        const li = document.createElement('li')
+        li.textContent = '（无明细）'
+        ul.appendChild(li)
+      }
+      bodyEl.appendChild(ul)
+      try {
+        await ipcRenderer.invoke('shell-modal-set', { open: true })
+      } catch (e) {
+        console.error('[前端] shell-modal-set(open):', e)
+      }
+      document.getElementById('badReviewModal').classList.add('show')
+    }
+
+    async function closeBadReviewModal() {
+      document.getElementById('badReviewModal').classList.remove('show')
+      try {
+        await ipcRenderer.invoke('shell-modal-set', { open: false })
+      } catch (e) {
+        console.error('[前端] shell-modal-set(close):', e)
+      }
+      if (activeTabId && isPanelOpen) {
+        try {
+          await ipcRenderer.invoke('toggle-auto-panel', { tabId: activeTabId, show: true })
+        } catch (e) {
+          console.error('[前端] toggle-auto-panel after modal:', e)
+        }
+      }
+    }
+
+    document.getElementById('badReviewModal').addEventListener('click', () => closeBadReviewModal())
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.getElementById('badReviewModal').classList.contains('show')) {
+        closeBadReviewModal()
+      }
+    })
+
+    // 监听差评发现事件（弹窗前先摘下 BrowserView，否则弹窗会被嵌入页盖住）
+    ipcRenderer.on('bad-review-found', async (event, { tabId, totalCount, details, violations }) => {
+      console.log('[前端] 收到差评通知:', tabId, totalCount, details, violations)
+      const tab = tabs.find(t => t.id === tabId)
+      if (tab) {
+        tab.hasBadReview = true
+        tab.badReviewCount = typeof totalCount === 'number' ? totalCount : 0
+        renderTabs()
+      }
+      const shopInfo = (details || []).map(d => {
+        const samples = (d.reviews || []).slice(0, 2).map(r => {
+          const star = r.rating != null && r.rating !== '' ? `${r.rating}星` : ''
+          const time = r.reviewTime || ''
+          return [time, star].filter(Boolean).join(' ')
+        }).filter(Boolean).join('; ')
+        return samples ? `${d.shop}: ${d.count}条 (${samples})` : `${d.shop}: ${d.count}条`
+      }).join(' | ')
+      
+      const hasViolations = violations && violations.length > 0;
+      let statusText = `发现${totalCount}条差评`;
+      if (hasViolations) statusText += `，${violations.length}条违规`;
+      if (shopInfo) statusText += ` (${shopInfo})`;
+      
+      updateStatus('badReviewStatus', statusText, true)
+      await showBadReviewModal(totalCount, details, tabId, violations)
+    })
+
+    ipcRenderer.on('bad-review-cleared', (event, { tabId }) => {
+      const tab = tabs.find(t => t.id === tabId)
+      if (tab) {
+        tab.hasBadReview = false
+        tab.badReviewCount = 0
+        renderTabs()
+      }
+    })
+
+    // 初始化：创建第一个标签页
+    createNewTab()
+
+    // ========== 自动化任务 ==========
+
+    let isPanelOpen = false
+    let badReviewInterval = null
+    let goodReviewInterval = null
+    let taskQueue = Promise.resolve()
+    
+    function enqueueTask(taskFn) {
+      taskQueue = taskQueue.then(taskFn).catch(e => console.error('[前端] 任务出错:', e))
+    }
+
+    function tabSessionLabel(tabId) {
+      const tab = tabs.find(t => t.id === tabId)
+      return tab ? `#${tab.sessionNum}` : tabId
+    }
+
+    function toggleAutoPanel() {
+      isPanelOpen = !isPanelOpen
+      document.getElementById('autoPanel').classList.toggle('show', isPanelOpen)
+      document.getElementById('autoBtn').classList.toggle('active', isPanelOpen)
+      // 通知主进程调整 BrowserView
+      if (activeTabId) {
+        ipcRenderer.invoke('toggle-auto-panel', { tabId: activeTabId, show: isPanelOpen })
+      }
+    }
+
+    // 差评监控开关
+    async function toggleBadReviewMonitor() {
+      console.log('[前端] toggleBadReviewMonitor 被调用')
+      const enabled = document.getElementById('badReviewSwitch').checked
+      console.log('[前端] 开关状态:', enabled)
+
+      if (enabled) {
+        if (!tabs.length) {
+          document.getElementById('badReviewSwitch').checked = false
+          return
+        }
+        updateStatus('badReviewStatus', '排队中...')
+        enqueueTask(runBadReviewMonitorAll)
+        scheduleBadReviewMonitor()
+      } else {
+        ipcRenderer.invoke('set-task-abort', { mode: 'bad', abort: true })
+        if (badReviewInterval) {
+          clearTimeout(badReviewInterval)
+          badReviewInterval = null
+        }
+        updateStatus('badReviewStatus', '')
+      }
+
+      updateAutoBtnState()
+    }
+
+    // 随机间隔调度差评监控
+    function scheduleBadReviewMonitor() {
+      const enabled = document.getElementById('badReviewSwitch').checked
+      if (!enabled) return
+
+      // 10-15分钟随机间隔
+      const minInterval = 10 * 60 * 1000 // 10分钟
+      const maxInterval = 15 * 60 * 1000 // 15分钟
+      const interval = Math.floor(Math.random() * (maxInterval - minInterval + 1)) + minInterval
+      const minutes = Math.round(interval / 60000)
+
+      const n = tabs.length
+      console.log('[前端] 下次检查:', minutes, '分钟后')
+      updateStatus('badReviewStatus', `下次检查: ${minutes}分钟后 · 共 ${n} 个标签`)
+
+      badReviewInterval = setTimeout(() => {
+        enqueueTask(runBadReviewMonitorAll)
+        scheduleBadReviewMonitor() // 递归调度下一次
+      }, interval)
+    }
+
+    /** 对每个已打开标签依次执行同一套差评监控逻辑 */
+    async function runBadReviewMonitorAll() {
+      const tabIds = tabs.map(t => t.id)
+      console.log('[前端] runBadReviewMonitorAll 标签数:', tabIds.length)
+      if (!tabIds.length) {
+        updateStatus('badReviewStatus', '无标签可检查', true)
+        return
+      }
+      const total = tabIds.length
+      let lastMsg = ''
+      let anyError = false
+      for (let i = 0; i < tabIds.length; i++) {
+        if (!document.getElementById('badReviewSwitch').checked) {
+          updateStatus('badReviewStatus', '已取消')
+          return
+        }
+        const tid = tabIds[i]
+        const label = tabSessionLabel(tid)
+        updateStatus('badReviewStatus', `正在检查 ${i + 1}/${total} · ${label}`)
+        try {
+          console.log('[前端] run-bad-review-monitor', tid)
+          const result = await ipcRenderer.invoke('run-bad-review-monitor', tid)
+          console.log('[前端] IPC 返回:', result)
+          lastMsg = result.message || '已检查'
+        } catch (e) {
+          console.log('[前端] IPC 失败:', e.message)
+          anyError = true
+          lastMsg = e.message || '检查失败'
+        }
+      }
+      updateStatus(
+        'badReviewStatus',
+        anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮已检查 ${total} 个标签 · ${lastMsg}`,
+        anyError
+      )
+    }
+
+    // 好评自动回复开关
+    async function toggleGoodReviewReply() {
+      const enabled = document.getElementById('goodReviewSwitch').checked
+
+      if (enabled) {
+        if (!tabs.length) {
+          document.getElementById('goodReviewSwitch').checked = false
+          return
+        }
+        updateStatus('goodReviewStatus', '排队中...')
+        enqueueTask(runGoodReviewReplyAll)
+        scheduleGoodReviewReply()
+      } else {
+        ipcRenderer.invoke('set-task-abort', { mode: 'good', abort: true })
+        if (goodReviewInterval) {
+          clearTimeout(goodReviewInterval)
+          goodReviewInterval = null
+        }
+        updateStatus('goodReviewStatus', '')
+      }
+
+      updateAutoBtnState()
+    }
+
+    // 随机间隔调度好评回复
+    function scheduleGoodReviewReply() {
+      const enabled = document.getElementById('goodReviewSwitch').checked
+      if (!enabled) return
+
+      // 10-15分钟随机间隔
+      const minInterval = 10 * 60 * 1000 // 10分钟
+      const maxInterval = 15 * 60 * 1000 // 15分钟
+      const interval = Math.floor(Math.random() * (maxInterval - minInterval + 1)) + minInterval
+      const minutes = Math.round(interval / 60000)
+
+      const n = tabs.length
+      console.log('[前端] 下次好评回复:', minutes, '分钟后')
+      updateStatus('goodReviewStatus', `下次执行: ${minutes}分钟后 · 共 ${n} 个标签`)
+
+      goodReviewInterval = setTimeout(() => {
+        enqueueTask(runGoodReviewReplyAll)
+        scheduleGoodReviewReply() // 递归调度下一次
+      }, interval)
+    }
+
+    /** 对每个已打开标签依次执行同一套好评回复逻辑 */
+    async function runGoodReviewReplyAll() {
+      const tabIds = tabs.map(t => t.id)
+      if (!tabIds.length) {
+        updateStatus('goodReviewStatus', '无标签', true)
+        return
+      }
+      const total = tabIds.length
+      let lastMsg = ''
+      let anyError = false
+      for (let i = 0; i < tabIds.length; i++) {
+        if (!document.getElementById('goodReviewSwitch').checked) {
+          updateStatus('goodReviewStatus', '已取消')
+          return
+        }
+        const tid = tabIds[i]
+        const label = tabSessionLabel(tid)
+        updateStatus('goodReviewStatus', `执行中 ${i + 1}/${total} · ${label}`)
+        try {
+          const result = await ipcRenderer.invoke('run-good-review-reply', { tabId: tid })
+          lastMsg = result.message || '已执行'
+        } catch (e) {
+          anyError = true
+          lastMsg = e.message || '执行失败'
+        }
+      }
+      updateStatus(
+        'goodReviewStatus',
+        anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮 ${total} 个标签 · ${lastMsg}`,
+        anyError
+      )
+    }
+
+    function updateAutoBtnState() {
+      const isRunning = badReviewInterval || goodReviewInterval
+      document.getElementById('autoBtn').classList.toggle('running', !!isRunning)
+    }
+
+    function updateStatus(elementId, message, isError = false) {
+      const el = document.getElementById(elementId)
+      el.textContent = message
+      el.className = 'auto-task-status' + (isError ? ' error' : '')
+    }
+
+  </script>
+</body>
+</html>

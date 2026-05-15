@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>设置 - Multi-Session Browser</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+    }
+
+    .header {
+      height: 60px;
+      background: #202124;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      border-bottom: 1px solid #333;
+    }
+
+    .back-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      background: transparent;
+      border: none;
+      color: #fff;
+      margin-right: 16px;
+    }
+
+    .back-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: #e8eaed;
+      margin-bottom: 16px;
+    }
+
+    /* 搜索和操作栏 */
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 10px 14px;
+      background: #292b2e;
+      border: 1px solid #5f6368;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: #8ab4f8;
+    }
+
+    .add-btn {
+      padding: 10px 20px;
+      background: #1a73e8;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .add-btn:hover {
+      background: #1557b0;
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .list-item {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      background: #292b2e;
+      border-radius: 8px;
+      gap: 16px;
+    }
+
+    .list-item-info {
+      flex: 1;
+      font-size: 15px;
+    }
+
+    .list-item-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .edit-btn {
+      background: #3c4043;
+      color: #fff;
+    }
+
+    .edit-btn:hover {
+      background: #4a4d50;
+    }
+
+    .delete-btn {
+      background: #c5221f;
+      color: #fff;
+    }
+
+    .delete-btn:hover {
+      background: #a31b19;
+    }
+
+    .template-manage-btn {
+      background: #174ea6;
+      color: #e8f0fe;
+    }
+
+    .template-manage-btn:hover {
+      background: #1a56c9;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #9aa0a6;
+    }
+
+    /* 弹窗样式 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.hidden {
+      display: none;
+    }
+
+    .modal {
+      background: #292b2e;
+      border-radius: 12px;
+      padding: 24px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal.modal-wide {
+      max-width: 640px;
+    }
+
+    .modal-scroll {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      color: #9aa0a6;
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: #3c4043;
+      border: 1px solid #5f6368;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: #8ab4f8;
+    }
+
+    .form-textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: #3c4043;
+      border: 1px solid #5f6368;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .form-textarea:focus {
+      border-color: #8ab4f8;
+    }
+
+    #shopTemplateFormOverlay {
+      z-index: 1100;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .cancel-btn {
+      padding: 10px 20px;
+      background: #3c4043;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .cancel-btn:hover {
+      background: #4a4d50;
+    }
+
+    .save-btn {
+      padding: 10px 20px;
+      background: #1a73e8;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .save-btn:hover {
+      background: #1557b0;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <button class="back-btn" onclick="goBack()">←</button>
+    <span class="header-title">设置</span>
+  </div>
+
+  <div class="container">
+    <div class="section-title">门店管理</div>
+    <div class="toolbar">
+      <input type="text" class="search-input" id="shopSearch" placeholder="搜索门店名称..." oninput="renderShops()">
+      <button class="add-btn" onclick="openAddShopModal()">+ 添加门店</button>
+    </div>
+    <div class="list" id="shopList"></div>
+
+    <div class="section-title" style="margin-top: 32px;">消息通知设置</div>
+    <div style="background: #292b2e; padding: 20px; border-radius: 8px;">
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label">企微机器人 Webhook 地址</label>
+        <div style="display: flex; gap: 12px;">
+          <input type="text" class="form-input" id="wecomWebhook" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...">
+          <button class="save-btn" style="white-space: nowrap;" onclick="saveWecomWebhook()">保存地址</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 门店弹窗 -->
+  <div class="modal-overlay hidden" id="shopModalOverlay" onclick="closeShopModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-title" id="shopModalTitle">添加门店</div>
+      <form id="shopForm">
+        <input type="hidden" id="shopId">
+        <div class="form-group">
+          <label class="form-label">门店名称 *</label>
+          <input type="text" class="form-input" id="shopName" required placeholder="请输入门店名称">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cancel-btn" onclick="closeShopModal()">取消</button>
+          <button type="submit" class="save-btn">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 某门店的好评模板列表 -->
+  <div class="modal-overlay hidden" id="shopTemplatesOverlay" onclick="closeShopTemplatesPanel(event)">
+    <div class="modal modal-wide" onclick="event.stopPropagation()">
+      <div class="modal-title" id="shopTemplatesTitle">好评回复</div>
+      <div class="toolbar" style="margin-bottom: 12px;">
+        <input type="text" class="search-input" id="shopTemplateSearch" placeholder="搜索模板内容..." oninput="renderShopTemplates()">
+        <button type="button" class="add-btn" onclick="openAddShopTemplateModal()">+ 添加模板</button>
+      </div>
+      <div class="modal-scroll list" id="shopTemplateList"></div>
+      <div class="modal-actions" style="margin-top: 16px;">
+        <button type="button" class="cancel-btn" onclick="closeShopTemplatesPanel()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 单条好评模板编辑 -->
+  <div class="modal-overlay hidden" id="shopTemplateFormOverlay" onclick="closeShopTemplateFormModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-title" id="shopTemplateFormTitle">添加模板</div>
+      <form id="shopTemplateForm">
+        <input type="hidden" id="shopTemplateEditId">
+        <div class="form-group">
+          <label class="form-label">好评回复内容 *</label>
+          <textarea class="form-textarea" id="shopTemplateContent" required placeholder="请输入好评回复内容"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="cancel-btn" onclick="closeShopTemplateFormModal()">取消</button>
+          <button type="submit" class="save-btn">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron')
+
+    let shops = []
+    let editingShopId = null
+    let currentTemplateShopId = null
+    let shopTemplates = []
+    let editingShopTemplateId = null
+
+    // ========== 门店管理 ==========
+
+    async function loadShops() {
+      shops = await ipcRenderer.invoke('shop-list')
+      renderShops()
+    }
+
+    function renderShops() {
+      const container = document.getElementById('shopList')
+      const keyword = document.getElementById('shopSearch').value.trim().toLowerCase()
+
+      const filtered = keyword
+        ? shops.filter(s => s.name.toLowerCase().includes(keyword))
+        : shops
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-state">${keyword ? '没有匹配的门店' : '暂无门店，点击上方按钮添加'}</div>`
+        return
+      }
+
+      container.innerHTML = filtered.map(shop => `
+        <div class="list-item">
+          <div class="list-item-info">${escapeHtml(shop.name)}</div>
+          <div class="list-item-actions">
+            <button class="action-btn template-manage-btn" onclick="openShopTemplatesPanel(${shop.id})">好评回复管理</button>
+            <button class="action-btn edit-btn" onclick="openEditShopModal(${shop.id})">编辑</button>
+            <button class="action-btn delete-btn" onclick="deleteShop(${shop.id})">删除</button>
+          </div>
+        </div>
+      `).join('')
+    }
+
+    function openAddShopModal() {
+      editingShopId = null
+      document.getElementById('shopModalTitle').textContent = '添加门店'
+      document.getElementById('shopForm').reset()
+      document.getElementById('shopModalOverlay').classList.remove('hidden')
+    }
+
+    function openEditShopModal(id) {
+      const shop = shops.find(s => s.id === id)
+      if (!shop) return
+
+      editingShopId = id
+      document.getElementById('shopModalTitle').textContent = '编辑门店'
+      document.getElementById('shopId').value = id
+      document.getElementById('shopName').value = shop.name
+      document.getElementById('shopModalOverlay').classList.remove('hidden')
+    }
+
+    function closeShopModal(event) {
+      if (event && event.target !== event.currentTarget) return
+      document.getElementById('shopModalOverlay').classList.add('hidden')
+    }
+
+    document.getElementById('shopForm').addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const name = document.getElementById('shopName').value.trim()
+      if (!name) {
+        alert('请输入门店名称')
+        return
+      }
+
+      if (editingShopId) {
+        await ipcRenderer.invoke('shop-update', { id: editingShopId, data: { name } })
+      } else {
+        await ipcRenderer.invoke('shop-create', { name })
+      }
+
+      closeShopModal()
+      loadShops()
+    })
+
+    async function deleteShop(id) {
+      const shop = shops.find(s => s.id === id)
+      if (!confirm(`确定要删除门店「${shop.name}」吗？`)) return
+      await ipcRenderer.invoke('shop-delete', id)
+      loadShops()
+    }
+
+    // ========== 某门店好评回复 ==========
+
+    async function openShopTemplatesPanel(shopId) {
+      currentTemplateShopId = shopId
+      const shop = shops.find(s => s.id === shopId)
+      document.getElementById('shopTemplatesTitle').textContent = shop
+        ? `好评回复 — ${shop.name}`
+        : '好评回复'
+      document.getElementById('shopTemplateSearch').value = ''
+      document.getElementById('shopTemplatesOverlay').classList.remove('hidden')
+      await loadShopTemplates()
+    }
+
+    function closeShopTemplatesPanel(event) {
+      if (event && event.target !== event.currentTarget) return
+      document.getElementById('shopTemplatesOverlay').classList.add('hidden')
+      currentTemplateShopId = null
+      shopTemplates = []
+    }
+
+    async function loadShopTemplates() {
+      if (!currentTemplateShopId) return
+      shopTemplates = await ipcRenderer.invoke('shop-template-list', currentTemplateShopId)
+      renderShopTemplates()
+    }
+
+    function renderShopTemplates() {
+      const container = document.getElementById('shopTemplateList')
+      const keyword = document.getElementById('shopTemplateSearch').value.trim().toLowerCase()
+
+      const filtered = keyword
+        ? shopTemplates.filter(t => t.content.toLowerCase().includes(keyword))
+        : shopTemplates
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-state">${keyword ? '没有匹配的模板' : '暂无模板，点击上方添加'}</div>`
+        return
+      }
+
+      container.innerHTML = filtered.map(t => `
+        <div class="list-item">
+          <div class="list-item-info">${escapeHtml(t.content)}</div>
+          <div class="list-item-actions">
+            <button type="button" class="action-btn edit-btn" onclick="openEditShopTemplateModal(${t.id})">编辑</button>
+            <button type="button" class="action-btn delete-btn" onclick="deleteShopTemplate(${t.id})">删除</button>
+          </div>
+        </div>
+      `).join('')
+    }
+
+    function openAddShopTemplateModal() {
+      if (!currentTemplateShopId) return
+      editingShopTemplateId = null
+      document.getElementById('shopTemplateFormTitle').textContent = '添加好评模板'
+      document.getElementById('shopTemplateForm').reset()
+      document.getElementById('shopTemplateFormOverlay').classList.remove('hidden')
+    }
+
+    function openEditShopTemplateModal(id) {
+      const t = shopTemplates.find(x => x.id === id)
+      if (!t) return
+      editingShopTemplateId = id
+      document.getElementById('shopTemplateFormTitle').textContent = '编辑好评模板'
+      document.getElementById('shopTemplateEditId').value = id
+      document.getElementById('shopTemplateContent').value = t.content
+      document.getElementById('shopTemplateFormOverlay').classList.remove('hidden')
+    }
+
+    function closeShopTemplateFormModal(event) {
+      if (event && event.target !== event.currentTarget) return
+      document.getElementById('shopTemplateFormOverlay').classList.add('hidden')
+    }
+
+    document.getElementById('shopTemplateForm').addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const content = document.getElementById('shopTemplateContent').value.trim()
+      if (!content) {
+        alert('请输入好评回复内容')
+        return
+      }
+      if (!currentTemplateShopId) return
+
+      if (editingShopTemplateId) {
+        await ipcRenderer.invoke('shop-template-update', { id: editingShopTemplateId, content })
+      } else {
+        await ipcRenderer.invoke('shop-template-create', { shopId: currentTemplateShopId, content })
+      }
+
+      closeShopTemplateFormModal()
+      await loadShopTemplates()
+    })
+
+    async function deleteShopTemplate(id) {
+      if (!confirm('确定要删除这条模板吗？')) return
+      await ipcRenderer.invoke('shop-template-delete', id)
+      await loadShopTemplates()
+    }
+
+    // ========== 全局设置 ==========
+
+    async function loadGlobalSettings() {
+      const webhook = await ipcRenderer.invoke('setting-get', 'wecom_webhook')
+      if (webhook) {
+        document.getElementById('wecomWebhook').value = webhook
+      }
+    }
+
+    async function saveWecomWebhook() {
+      const val = document.getElementById('wecomWebhook').value.trim()
+      await ipcRenderer.invoke('setting-set', { key: 'wecom_webhook', value: val })
+      alert('保存成功！差评预警现在会推送到这个企微群。')
+    }
+
+    // ========== 通用 ==========
+
+    function escapeHtml(text) {
+      const div = document.createElement('div')
+      div.textContent = text
+      return div.innerHTML
+    }
+
+    function goBack() {
+      ipcRenderer.invoke('close-settings')
+    }
+
+    // 初始化
+    loadShops()
+    loadGlobalSettings()
+  </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+name: Build Windows App
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # 允许在 GitHub 网页上手动触发打包
+
+jobs:
+  build:
+    runs-on: windows-latest # 使用 GitHub 提供的官方 Windows 云服务器
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 配置 Node.js 环境
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22' # 匹配您的 Electron 41 对应的高版本 Node
+        cache: 'npm'
+
+    - name: 安装依赖
+      run: npm install
+
+    - name: 打包 Windows 应用程序
+      run: npm run build:win
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 防止部分下载被限制
+
+    - name: 上传安装包到 GitHub
+      uses: actions/upload-artifact@v4
+      with:
+        name: Multi-Session-Browser-Windows-Installer
+        path: |
+          dist/*.exe
+        retention-days: 7 # 安装包保留 7 天

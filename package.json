@@ -1,0 +1,57 @@
+{
+  "name": "multi-session-browser",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:all": "electron-builder --mac --win"
+  },
+  "author": "chenchuan",
+  "license": "ISC",
+  "description": "Multi-session isolated browser",
+  "build": {
+    "appId": "com.multisession.browser",
+    "productName": "Multi Session Browser",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "db.js",
+      "auto-helper.js",
+      "iframe-bridge.js",
+      "index.html",
+      "settings.html",
+      "docs/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^41.1.0",
+    "electron-builder": "^26.8.1",
+    "electron-rebuild": "^3.2.9"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "playwright": "^1.59.1"
+  }
+}
