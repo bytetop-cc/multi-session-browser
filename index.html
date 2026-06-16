@@ -1008,6 +1008,18 @@
         updateStatus('badReviewStatus', '无标签可检查', true)
         return
       }
+      // 每次执行前，清空各标签页的上一轮差评日志与红点警报
+      tabs.forEach(t => {
+        t.progressText = '🔍 正在启动检查...'
+        t.hasBadReview = false
+        t.badReviewCount = 0
+        t.violationCount = 0
+      })
+      renderTabs()
+      
+      // 重置开关下方的汇总看板状态
+      document.getElementById('badReviewSummaryResult').innerHTML = '<div><i>正在进行新一轮检查...</i></div>'
+
       let totalCheckedShops = 0
       const total = tabIds.length
       let completedCount = 0
@@ -1126,6 +1138,16 @@
         updateStatus('goodReviewStatus', '无标签', true)
         return
       }
+      // 每次执行前，清空各标签页的上一轮好评回复日志
+      tabs.forEach(t => {
+        t.progressText = '✍️ 正在启动回复...'
+        t.goodReplyCount = 0
+      })
+      renderTabs()
+      
+      // 重置好评汇总看板状态
+      document.getElementById('goodReviewSummaryResult').innerHTML = '<div><i>正在进行新一轮自动回复...</i></div>'
+
       let totalCheckedShops = 0
       let totalRepliesDone = 0
       const total = tabIds.length
