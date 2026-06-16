@@ -595,10 +595,13 @@ async function executeReviewTask(tab, mode, runId) {
           mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: `✍️ [${item.api.shopName}] 回复好评中...` });
           console.log(`[${taskName}] 发现 [${displayName}] (${platformName}) 有 ${shopNeedReplyGoodReviews.length} 条未回复好评，开始执行 API 回复...`);
 
+          const repliesBase64 = Buffer.from(JSON.stringify(shopNeedReplyGoodReviews)).toString('base64');
+          const templatesBase64 = Buffer.from(JSON.stringify(shopTemplates)).toString('base64');
+
           const replyResult = await tab.view.webContents.executeJavaScript(`
             (async function() {
-              const replies = ${JSON.stringify(shopNeedReplyGoodReviews)};
-              const templates = ${JSON.stringify(shopTemplates)};
+              const replies = JSON.parse(atob("${repliesBase64}"));
+              const templates = JSON.parse(atob("${templatesBase64}"));
               let successCount = 0;
               
               function getRandomTemplate() {
@@ -617,7 +620,7 @@ async function executeReviewTask(tab, mode, runId) {
                   
                   const content = getRandomTemplate();
                   
-                  const res = await fetch('/review/app/reply/ajax/reviewreply', {
+                  const res = await fetch('https://e.dianping.com/review/app/reply/ajax/reviewreply', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
