@@ -351,7 +351,7 @@ function randomSleep(minMs, maxMs) {
 async function executeReviewTask(tab, mode, runId) {
   const taskName = mode === 'bad' ? '差评监控' : '好评回复';
   taskAbortFlags[mode] = false; // 开始前重置中止标志
-  
+
   if (!tab) {
     console.log(`[${taskName}] 错误: 标签页不存在`)
     return { message: '标签页不存在' }
@@ -368,10 +368,10 @@ async function executeReviewTask(tab, mode, runId) {
 
   let templates = [];
   if (mode === 'good') {
-      templates = templateService.getAllWithShop()
-      if (templates.length === 0) {
-         return { message: '请先在设置中为门店添加好评回复模板' }
-      }
+    templates = templateService.getAllWithShop()
+    if (templates.length === 0) {
+      return { message: '请先在设置中为门店添加好评回复模板' }
+    }
   }
 
   // 辅助函数：归一化门店名称
@@ -385,10 +385,10 @@ async function executeReviewTask(tab, mode, runId) {
     const shopName = apiShop.shopName || '';
     const branchName = apiShop.branchName || '';
     const combined = branchName ? `${shopName}（${branchName}）` : shopName;
-    
+
     const normCfg = normalizeShopName(cfgName);
     const normCombined = normalizeShopName(combined);
-    
+
     return normCfg === normCombined || normCombined.includes(normCfg) || normCfg.includes(normCombined);
   }
 
@@ -469,7 +469,7 @@ async function executeReviewTask(tab, mode, runId) {
     let totalGoodReplies = 0;
     const badReviewDetails = [];
     const goodReplyDetails = [];
-    const violationAlerts = []; 
+    const violationAlerts = [];
     let totalShopRuns = 0;
 
     for (const item of matchedShops) {
@@ -699,82 +699,82 @@ async function executeReviewTask(tab, mode, runId) {
 
     // 6. 任务结束处理与通知推送
     if (mode === 'bad') {
-        const hasViolations = violationAlerts.length > 0;
-        if (totalBadReviews > 0 || hasViolations) {
-          mainWindow.webContents.send('bad-review-found', {
-            tabId: tab.id,
-            totalCount: totalBadReviews,
-            details: badReviewDetails,
-            violations: violationAlerts
-          });
-
-          if (Notification.isSupported()) {
-            const notifParts = [];
-            if (totalBadReviews > 0) notifParts.push(`${totalBadReviews} 条未回复差评`);
-            if (hasViolations) notifParts.push(`${violationAlerts.length} 条违规预警`);
-            new Notification({
-              title: hasViolations && totalBadReviews === 0 ? '违规预警' : '差评/违规提醒',
-              body: `发现 ${notifParts.join('、')}，请及时处理！`
-            }).show();
-          }
-
-          // 企微机器人推送
-          try {
-            const webhookUrl = settingService.get('wecom_webhook');
-            if (webhookUrl) {
-              const { net } = require('electron');
-              let content = `⚠️ 发现差评或违规预警！\n`;
-              if (totalBadReviews > 0) content += `\n未回复差评：${totalBadReviews} 条`;
-              if (hasViolations) content += `\n违规预警：${violationAlerts.length} 条`;
-              content += `\n\n详情:`;
-              badReviewDetails.forEach(d => {
-                content += `\n- ${d.shop}: ${d.count} 条`;
-              });
-              violationAlerts.forEach(v => {
-                content += `\n- [违规] ${v.shop}: ${v.desc || v.title}`;
-              });
-              
-              const request = net.request({
-                method: 'POST',
-                url: webhookUrl,
-                headers: {
-                  'Content-Type': 'application/json'
-                }
-              });
-              request.on('error', (err) => console.log('企微推送错误:', err));
-              request.write(JSON.stringify({
-                msgtype: 'text',
-                text: { content }
-              }));
-              request.end();
-            }
-          } catch (e) {
-            console.log('企微机器人推送异常:', e.message);
-          }
-        } else {
-          mainWindow.webContents.send('bad-review-cleared', { tabId: tab.id });
-        }
-        
-        const msgParts = [];
-        if (totalBadReviews > 0) msgParts.push(`${totalBadReviews} 条差评`);
-        if (hasViolations) msgParts.push(`${violationAlerts.length} 条违规预警`);
-    
-        mainWindow.webContents.send('task-progress-update', {
+      const hasViolations = violationAlerts.length > 0;
+      if (totalBadReviews > 0 || hasViolations) {
+        mainWindow.webContents.send('bad-review-found', {
           tabId: tab.id,
-          mode,
-          text: totalBadReviews > 0 || hasViolations
-            ? `🔴 差评:${totalBadReviews}条${hasViolations ? ` 违规:${violationAlerts.length}条` : ''}`
-            : `✅ 无异常`
-        });
-
-        return {
-          message: msgParts.length > 0
-            ? `发现 ${msgParts.join('、')}！`
-            : `已检查 ${totalShopRuns} 个门店实例，暂无异常`,
-          totalBadReviews: totalBadReviews,
+          totalCount: totalBadReviews,
           details: badReviewDetails,
           violations: violationAlerts
-        };
+        });
+
+        if (Notification.isSupported()) {
+          const notifParts = [];
+          if (totalBadReviews > 0) notifParts.push(`${totalBadReviews} 条未回复差评`);
+          if (hasViolations) notifParts.push(`${violationAlerts.length} 条违规预警`);
+          new Notification({
+            title: hasViolations && totalBadReviews === 0 ? '违规预警' : '差评/违规提醒',
+            body: `发现 ${notifParts.join('、')}，请及时处理！`
+          }).show();
+        }
+
+        // 企微机器人推送
+        try {
+          const webhookUrl = settingService.get('wecom_webhook');
+          if (webhookUrl) {
+            const { net } = require('electron');
+            let content = `⚠️ 发现差评或违规预警！\n`;
+            if (totalBadReviews > 0) content += `\n未回复差评：${totalBadReviews} 条`;
+            if (hasViolations) content += `\n违规预警：${violationAlerts.length} 条`;
+            content += `\n\n详情:`;
+            badReviewDetails.forEach(d => {
+              content += `\n- ${d.shop}: ${d.count} 条`;
+            });
+            violationAlerts.forEach(v => {
+              content += `\n- [违规] ${v.shop}: ${v.desc || v.title}`;
+            });
+
+            const request = net.request({
+              method: 'POST',
+              url: webhookUrl,
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+            request.on('error', (err) => console.log('企微推送错误:', err));
+            request.write(JSON.stringify({
+              msgtype: 'text',
+              text: { content }
+            }));
+            request.end();
+          }
+        } catch (e) {
+          console.log('企微机器人推送异常:', e.message);
+        }
+      } else {
+        mainWindow.webContents.send('bad-review-cleared', { tabId: tab.id });
+      }
+
+      const msgParts = [];
+      if (totalBadReviews > 0) msgParts.push(`${totalBadReviews} 条差评`);
+      if (hasViolations) msgParts.push(`${violationAlerts.length} 条违规预警`);
+
+      mainWindow.webContents.send('task-progress-update', {
+        tabId: tab.id,
+        mode,
+        text: totalBadReviews > 0 || hasViolations
+          ? `🔴 差评:${totalBadReviews}条${hasViolations ? ` 违规:${violationAlerts.length}条` : ''}`
+          : `✅ 无异常`
+      });
+
+      return {
+        message: msgParts.length > 0
+          ? `发现 ${msgParts.join('、')}！`
+          : `已检查 ${totalShopRuns} 个门店实例，暂无异常`,
+        totalBadReviews: totalBadReviews,
+        details: badReviewDetails,
+        violations: violationAlerts
+      };
     } else {
         mainWindow.webContents.send('task-progress-update', {
           tabId: tab.id,
@@ -783,7 +783,7 @@ async function executeReviewTask(tab, mode, runId) {
         });
 
         return {
-           message: `自动回复完成，共回复 ${totalGoodReplies} 条好评`,
+           message: `已检查 ${totalShopRuns} 个门店实例，自动回复完成，共回复 ${totalGoodReplies} 条好评`,
            count: totalGoodReplies,
            details: goodReplyDetails
         };
