@@ -865,7 +865,7 @@
     let isPanelOpen = false
     let badReviewInterval = null
     let goodReviewInterval = null
-    let taskQueue = Promise.resolve()
+    // 移除了排队串行限制，差评与好评任务现已实现纯 API 独立并行触发
     
     // 门店名称简写及平台格式化并更新到标签
     function updateTabResult(tab, mode, details) {
@@ -964,8 +964,8 @@
           document.getElementById('badReviewSwitch').checked = false
           return
         }
-        updateStatus('badReviewStatus', '排队中...')
-        enqueueTask(runBadReviewMonitorAll)
+        updateStatus('badReviewStatus', '正在启动检查...')
+        runBadReviewMonitorAll()
         scheduleBadReviewMonitor()
       } else {
         ipcRenderer.invoke('set-task-abort', { mode: 'bad', abort: true })
@@ -995,7 +995,7 @@
       updateStatus('badReviewStatus', `下次检查: ${minutes}分钟后 · 共 ${n} 个标签`)
 
       badReviewInterval = setTimeout(() => {
-        enqueueTask(runBadReviewMonitorAll)
+        runBadReviewMonitorAll()
         scheduleBadReviewMonitor() // 递归调度下一次
       }, interval)
     }
@@ -1080,8 +1080,8 @@
           document.getElementById('goodReviewSwitch').checked = false
           return
         }
-        updateStatus('goodReviewStatus', '排队中...')
-        enqueueTask(runGoodReviewReplyAll)
+        updateStatus('goodReviewStatus', '正在启动回复...')
+        runGoodReviewReplyAll()
         scheduleGoodReviewReply()
       } else {
         ipcRenderer.invoke('set-task-abort', { mode: 'good', abort: true })
@@ -1111,7 +1111,7 @@
       updateStatus('goodReviewStatus', `下次执行: ${minutes}分钟后 · 共 ${n} 个标签`)
 
       goodReviewInterval = setTimeout(() => {
-        enqueueTask(runGoodReviewReplyAll)
+        runGoodReviewReplyAll()
         scheduleGoodReviewReply() // 递归调度下一次
       }, interval)
     }

@@ -489,6 +489,7 @@ async function executeReviewTask(tab, mode, runId) {
           return { message: '任务已被手动取消' };
         }
         const platformName = platformVal === 1 ? '点评' : '美团';
+        await sleep(3000); // 接口调用前等待 3 秒防频限制
         mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: `📡 [${item.api.shopName}] 拉取${platformName}点评...` });
         console.log(`[${taskName}] 拉取平台: ${platformName} (ID: ${platformVal})`);
 
@@ -635,7 +636,7 @@ async function executeReviewTask(tab, mode, runId) {
                     successCount++;
                   }
                   
-                  await sleep(1000); // 每次回复之间延迟 1 秒防频率限制
+                  await sleep(3000); // 每次回复之间延迟 3 秒防频率限制
                 } catch (e) {
                   console.error('[API好评回复] 发生异常:', e.message);
                 }
