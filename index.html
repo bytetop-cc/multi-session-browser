@@ -834,7 +834,6 @@
       if (shopInfo) statusText += ` (${shopInfo})`;
       
       updateStatus('badReviewStatus', statusText, true)
-      await showBadReviewModal(totalCount, details, tabId, violations)
     })
 
     ipcRenderer.on('bad-review-cleared', (event, { tabId }) => {
