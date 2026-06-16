@@ -1,0 +1,35 @@
+diff --git a/node_modules/better-sqlite3/binding.gyp b/node_modules/better-sqlite3/binding.gyp
+index 81a1238..7c1f5b1 100644
+--- a/node_modules/better-sqlite3/binding.gyp
++++ b/node_modules/better-sqlite3/binding.gyp
+@@ -12,6 +12,8 @@
+       'cflags_cc': ['-std=c++20'],
+       'xcode_settings': {
+         'OTHER_CPLUSPLUSFLAGS': ['-std=c++20', '-stdlib=libc++'],
++        'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',
++        'MACOSX_DEPLOYMENT_TARGET': '12.0',
+       },
+       'msvs_settings': {
+         'VCCLCompilerTool': {
+diff --git a/node_modules/better-sqlite3/deps/common.gypi b/node_modules/better-sqlite3/deps/common.gypi
+index 613adc3..f519385 100644
+--- a/node_modules/better-sqlite3/deps/common.gypi
++++ b/node_modules/better-sqlite3/deps/common.gypi
+@@ -34,7 +34,7 @@
+           '-O0',
+         ],
+         'xcode_settings': {
+-          'MACOSX_DEPLOYMENT_TARGET': '10.7',
++          'MACOSX_DEPLOYMENT_TARGET': '12.0',
+           'GCC_OPTIMIZATION_LEVEL': '0',
+           'GCC_GENERATE_DEBUGGING_SYMBOLS': 'YES',
+         },
+@@ -56,7 +56,7 @@
+           '-O3',
+         ],
+         'xcode_settings': {
+-          'MACOSX_DEPLOYMENT_TARGET': '10.7',
++          'MACOSX_DEPLOYMENT_TARGET': '12.0',
+           'GCC_OPTIMIZATION_LEVEL': '3',
+           'GCC_GENERATE_DEBUGGING_SYMBOLS': 'NO',
+           'DEAD_CODE_STRIPPING': 'YES',

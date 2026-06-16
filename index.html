@@ -18,7 +18,7 @@
     }
 
     .toolbar {
-      height: 80px;
+      height: 96px;
       background: #202124;
       display: flex;
       flex-direction: column;
@@ -26,7 +26,7 @@
 
     /* 标签栏 - 横向展开 */
     .tab-bar {
-      height: 40px;
+      height: 56px;
       display: flex;
       align-items: center;
       padding: 4px 8px;
@@ -51,15 +51,17 @@
 
     .tab {
       display: flex;
-      align-items: center;
-      height: 32px;
-      padding: 0 12px;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      height: 48px;
+      padding: 4px 10px;
       background: #3c4043;
       border-radius: 8px 8px 0 0;
       margin-right: 2px;
       cursor: pointer;
       flex: 1;
-      min-width: 100px;
+      min-width: 130px;
       max-width: 240px;
       position: relative;
     }
@@ -460,27 +462,41 @@
   <div class="auto-panel" id="autoPanel">
     <div class="auto-panel-header">自动化任务</div>
     <div class="auto-panel-body">
-      <div class="auto-task">
-        <div class="auto-task-info">
-          <div class="auto-task-name">差评监控</div>
-          <div class="auto-task-desc">对每个已打开标签依次执行相同检查（会话独立）</div>
-          <div class="auto-task-status" id="badReviewStatus"></div>
+      <div class="auto-task" style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div class="auto-task-info">
+            <div class="auto-task-name">差评监控</div>
+            <div class="auto-task-desc">对每个已打开标签依次执行相同检查（会话独立）</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="badReviewSwitch" checked onchange="toggleBadReviewMonitor()">
+            <span class="switch-slider"></span>
+          </label>
         </div>
-        <label class="switch">
-          <input type="checkbox" id="badReviewSwitch" onchange="toggleBadReviewMonitor()">
-          <span class="switch-slider"></span>
-        </label>
+        <!-- 差评汇总结果区 -->
+        <div id="badReviewSummaryArea" style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #e8eaed; display: none; border-left: 3px solid #ea4335;">
+          <div style="font-weight: 600; margin-bottom: 4px; color: #ea4335; font-size: 12px;">差评 & 预警汇总：</div>
+          <div id="badReviewSummaryResult">未开始检查</div>
+        </div>
+        <div class="auto-task-status" id="badReviewStatus"></div>
       </div>
-      <div class="auto-task">
-        <div class="auto-task-info">
-          <div class="auto-task-name">好评自动回复</div>
-          <div class="auto-task-desc">从设置中各门店模板随机选用；对每个已打开标签各执行一遍</div>
-          <div class="auto-task-status" id="goodReviewStatus"></div>
+      <div class="auto-task" style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div class="auto-task-info">
+            <div class="auto-task-name">好评自动回复</div>
+            <div class="auto-task-desc">从设置中各门店模板随机选用；对每个已打开标签各执行一遍</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="goodReviewSwitch" checked onchange="toggleGoodReviewReply()">
+            <span class="switch-slider"></span>
+          </label>
         </div>
-        <label class="switch">
-          <input type="checkbox" id="goodReviewSwitch" onchange="toggleGoodReviewReply()">
-          <span class="switch-slider"></span>
-        </label>
+        <!-- 好评汇总结果区 -->
+        <div id="goodReviewSummaryArea" style="background: rgba(0,0,0,0.25); border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #e8eaed; display: none; border-left: 3px solid #34a853;">
+          <div style="font-weight: 600; margin-bottom: 4px; color: #34a853; font-size: 12px;">自动回复汇总：</div>
+          <div id="goodReviewSummaryResult">未开始回复</div>
+        </div>
+        <div class="auto-task-status" id="goodReviewStatus"></div>
       </div>
     </div>
   </div>
@@ -605,36 +621,43 @@
       container.innerHTML = tabs.map(tab => {
         const isEditing = editingTabId === tab.id
         const displayName = getDisplayName(tab)
+        const progressVal = tab.progressText || '空闲'
+
+        // 红点警报（差评）只要 hasBadReview 为 true 就显示
+        const alertHtml = tab.hasBadReview
+          ? `<span class="tab-alert" style="position: absolute; right: 28px; top: 12px;" title="${tab.badReviewCount ? '发现差评（' + tab.badReviewCount + '条）' : '发现差评'}"></span>`
+          : ''
 
         if (isEditing) {
-          const alertHtml = tab.hasBadReview
-            ? `<span class="tab-alert" title="${tab.badReviewCount ? '发现差评（' + tab.badReviewCount + '条）' : '发现差评'}"></span>`
-            : ''
           return `
-            <div class="tab ${tab.id === activeTabId ? 'active' : ''}" onclick="switchTab('${tab.id}')">
+            <div class="tab ${tab.id === activeTabId ? 'active' : ''}" onclick="switchTab('${tab.id}')" style="height: 48px; display: flex; flex-direction: column; justify-content: center; padding: 4px 10px; position: relative;">
+              <div style="display: flex; align-items: center; width: 100%; justify-content: space-between; margin-bottom: 2px;">
+                <input type="text"
+                  id="edit-${tab.id}"
+                  class="tab-title-input"
+                  value="${displayName}"
+                  onkeydown="onEditKeydown('${tab.id}', event)"
+                  onblur="onEditBlur('${tab.id}', event)"
+                  onclick="event.stopPropagation()"
+                  style="font-size: 12px; height: 18px; width: calc(100% - 32px);">
+                <span class="tab-session" style="font-size: 9px; color: #8ab4f8; opacity: 0.7; margin-right: 18px;">#${tab.sessionNum}</span>
+              </div>
+              <div class="tab-progress-text" style="font-size: 10px; color: #a5c2f4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; text-align: left;">${progressVal}</div>
               ${alertHtml}
-              <input type="text"
-                id="edit-${tab.id}"
-                class="tab-title-input"
-                value="${displayName}"
-                onkeydown="onEditKeydown('${tab.id}', event)"
-                onblur="onEditBlur('${tab.id}', event)"
-                onclick="event.stopPropagation()">
-              <span class="tab-session">#${tab.sessionNum}</span>
-              <span class="tab-close" onclick="closeTab('${tab.id}', event)">×</span>
+              <span class="tab-close" style="position: absolute; right: 6px; top: 8px;" onclick="closeTab('${tab.id}', event)">×</span>
             </div>
           `
         }
 
-        const alertTitle = tab.hasBadReview
-          ? (tab.badReviewCount ? '发现差评（' + tab.badReviewCount + '条）' : '发现差评')
-          : ''
         return `
-          <div class="tab ${tab.id === activeTabId ? 'active' : ''}" onclick="switchTab('${tab.id}')">
-            ${tab.hasBadReview ? '<span class="tab-alert" title="' + alertTitle.replace(/"/g, '&quot;') + '"></span>' : ''}
-            <span class="tab-title" ondblclick="startEditTab('${tab.id}', event)">${displayName}</span>
-            <span class="tab-session">#${tab.sessionNum}</span>
-            <span class="tab-close" onclick="closeTab('${tab.id}', event)">×</span>
+          <div class="tab ${tab.id === activeTabId ? 'active' : ''}" onclick="switchTab('${tab.id}')" style="height: 48px; display: flex; flex-direction: column; justify-content: center; padding: 4px 10px; position: relative;">
+            <div style="display: flex; align-items: center; width: 100%; justify-content: space-between; margin-bottom: 2px;">
+              <span class="tab-title" style="font-weight: 500; font-size: 12px; margin-right: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" ondblclick="startEditTab('${tab.id}', event)">${displayName}</span>
+              <span class="tab-session" style="font-size: 9px; color: #8ab4f8; opacity: 0.7; margin-right: 18px;">#${tab.sessionNum}</span>
+            </div>
+            <div class="tab-progress-text" style="font-size: 10px; color: #a5c2f4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; text-align: left;">${progressVal}</div>
+            ${alertHtml}
+            <span class="tab-close" style="position: absolute; right: 6px; top: 8px;" onclick="closeTab('${tab.id}', event)">×</span>
           </div>
         `
       }).join('')
@@ -681,6 +704,15 @@
     async function openSettings() {
       await ipcRenderer.invoke('open-settings')
     }
+
+    // 监听任务进度实时更新
+    ipcRenderer.on('task-progress-update', (event, { tabId, mode, text }) => {
+      const tab = tabs.find(t => t.id === tabId)
+      if (tab) {
+        tab.progressText = text
+        renderTabs()
+      }
+    })
 
     // 监听标签页更新
     ipcRenderer.on('tab-title-updated', (event, { tabId, title }) => {
@@ -783,6 +815,8 @@
       if (tab) {
         tab.hasBadReview = true
         tab.badReviewCount = typeof totalCount === 'number' ? totalCount : 0
+        tab.violationCount = (violations || []).length
+        updateTabResult(tab, 'bad', details)
         renderTabs()
       }
       const shopInfo = (details || []).map(d => {
@@ -808,12 +842,23 @@
       if (tab) {
         tab.hasBadReview = false
         tab.badReviewCount = 0
+        tab.violationCount = 0
+        tab.progressText = '✅ 差评:无'
         renderTabs()
       }
     })
 
-    // 初始化：创建第一个标签页
-    createNewTab()
+    // 初始化：创建第一个标签页并自动调度任务
+    createNewTab().then(() => {
+      setTimeout(() => {
+        if (document.getElementById('badReviewSwitch').checked) {
+          toggleBadReviewMonitor()
+        }
+        if (document.getElementById('goodReviewSwitch').checked) {
+          toggleGoodReviewReply()
+        }
+      }, 1500)
+    })
 
     // ========== 自动化任务 ==========
 
@@ -822,8 +867,75 @@
     let goodReviewInterval = null
     let taskQueue = Promise.resolve()
     
-    function enqueueTask(taskFn) {
-      taskQueue = taskQueue.then(taskFn).catch(e => console.error('[前端] 任务出错:', e))
+    // 门店名称简写及平台格式化并更新到标签
+    function updateTabResult(tab, mode, details) {
+      if (!details || details.length === 0) {
+        tab.progressText = mode === 'bad' ? '✅ 差评:无' : '🟢 回复:无';
+        return;
+      }
+      
+      const getBriefShopName = (fullName) => {
+        // 比如 fullName 是 "你可汤泉 (点评)" 或者 "紫叶林盲人按摩宋家庄店 (点评)"
+        const platformMatch = fullName.match(/\\((点评|美团)\\)/);
+        const platform = platformMatch ? platformMatch[1] : '';
+        
+        let name = fullName.split('(')[0].trim();
+        name = name.replace(/紫叶林盲人按摩|紫叶盲人按摩|你可汤泉/g, ''); 
+        if (!name || name.trim() === '') name = '店';
+        return `${name}(${platform})`;
+      };
+
+      const parts = details.map(d => {
+        const brief = getBriefShopName(d.shop);
+        return `${brief}:${d.count}`;
+      });
+
+      if (mode === 'bad') {
+        tab.progressText = `🔴 待处: ` + parts.join(' | ');
+      } else {
+        tab.progressText = `🟢 已回: ` + parts.join(' | ');
+      }
+    }
+
+    // 更新自动化面板开关下方的汇总结果看板
+    function updateSummaryUI(mode) {
+      if (mode === 'bad') {
+        let totalBad = 0;
+        let totalViolations = 0;
+        
+        tabs.forEach(t => {
+          if (t.badReviewCount !== undefined) {
+            totalBad += t.badReviewCount;
+          }
+          if (t.violationCount !== undefined) {
+            totalViolations += t.violationCount;
+          }
+        });
+
+        const timeStr = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        document.getElementById('badReviewSummaryArea').style.display = 'block';
+        document.getElementById('badReviewSummaryResult').innerHTML = `
+          <div>- 已检标签: <b>${tabs.length} 个</b></div>
+          <div style="color: #ff8a80; margin-top: 2px;">- 待回复差评: <b>${totalBad} 条</b></div>
+          <div style="color: #ff8a80; margin-top: 2px;">- 违规预警数: <b>${totalViolations} 条</b></div>
+          <div style="font-size: 10px; color: #9aa0a6; margin-top: 6px;">更新时间: ${timeStr}</div>
+        `;
+      } else if (mode === 'good') {
+        let totalReplies = 0;
+        tabs.forEach(t => {
+          if (t.goodReplyCount !== undefined) {
+            totalReplies += t.goodReplyCount;
+          }
+        });
+
+        const timeStr = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        document.getElementById('goodReviewSummaryArea').style.display = 'block';
+        document.getElementById('goodReviewSummaryResult').innerHTML = `
+          <div>- 已检标签: <b>${tabs.length} 个</b></div>
+          <div style="color: #a5d6a7; margin-top: 2px;">- 累计成功回复: <b>${totalReplies} 条好评</b></div>
+          <div style="font-size: 10px; color: #9aa0a6; margin-top: 6px;">更新时间: ${timeStr}</div>
+        `;
+      }
     }
 
     function tabSessionLabel(tabId) {
@@ -888,41 +1000,75 @@
       }, interval)
     }
 
-    /** 对每个已打开标签依次执行同一套差评监控逻辑 */
+    /** 对每个已打开标签并行执行同一套差评监控逻辑 */
     async function runBadReviewMonitorAll() {
       const tabIds = tabs.map(t => t.id)
-      console.log('[前端] runBadReviewMonitorAll 标签数:', tabIds.length)
+      console.log('[前端] runBadReviewMonitorAll (并行) 标签数:', tabIds.length)
       if (!tabIds.length) {
         updateStatus('badReviewStatus', '无标签可检查', true)
         return
       }
       const total = tabIds.length
+      let completedCount = 0
       let lastMsg = ''
       let anyError = false
-      for (let i = 0; i < tabIds.length; i++) {
+ 
+      // 1. 启动任务并获取主进程分配的唯一 runId
+      let runId;
+      try {
+        runId = await ipcRenderer.invoke('start-task-run', 'bad')
+      } catch (e) {
+        console.error('[前端] 启动任务失败:', e)
+        updateStatus('badReviewStatus', '启动任务失败: ' + e.message, true)
+        return
+      }
+ 
+      updateStatus('badReviewStatus', `正在并行检查 ${total} 个标签...`)
+ 
+      // 2. 并行执行所有标签页的监控
+      const promises = tabIds.map(async (tid) => {
         if (!document.getElementById('badReviewSwitch').checked) {
-          updateStatus('badReviewStatus', '已取消')
           return
         }
-        const tid = tabIds[i]
-        const label = tabSessionLabel(tid)
-        updateStatus('badReviewStatus', `正在检查 ${i + 1}/${total} · ${label}`)
         try {
-          console.log('[前端] run-bad-review-monitor', tid)
-          const result = await ipcRenderer.invoke('run-bad-review-monitor', tid)
-          console.log('[前端] IPC 返回:', result)
+          console.log('[前端] 启动并行监控:', tid, 'runId:', runId)
+          const result = await ipcRenderer.invoke('run-bad-review-monitor', { tabId: tid, runId })
+          console.log('[前端] 并行监控返回:', tid, result)
+          
+          const tab = tabs.find(t => t.id === tid)
+          if (tab && result) {
+            tab.badReviewCount = result.totalBadReviews || 0
+            tab.violationCount = (result.violations || []).length
+            updateTabResult(tab, 'bad', result.details)
+            renderTabs()
+          }
+          
           lastMsg = result.message || '已检查'
         } catch (e) {
-          console.log('[前端] IPC 失败:', e.message)
+          console.log('[前端] 并行监控失败:', tid, e.message)
           anyError = true
           lastMsg = e.message || '检查失败'
+        } finally {
+          completedCount++
+          if (document.getElementById('badReviewSwitch').checked) {
+            updateStatus('badReviewStatus', `正在检查中: 已完成 ${completedCount}/${total} 个标签`)
+          }
         }
+      })
+ 
+      await Promise.all(promises)
+      updateSummaryUI('bad')
+ 
+      // 3. 更新最终状态
+      if (!document.getElementById('badReviewSwitch').checked) {
+        updateStatus('badReviewStatus', '已取消')
+      } else {
+        updateStatus(
+          'badReviewStatus',
+          anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮已检查 ${total} 个标签 · ${lastMsg}`,
+          anyError
+        )
       }
-      updateStatus(
-        'badReviewStatus',
-        anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮已检查 ${total} 个标签 · ${lastMsg}`,
-        anyError
-      )
     }
 
     // 好评自动回复开关
@@ -970,7 +1116,7 @@
       }, interval)
     }
 
-    /** 对每个已打开标签依次执行同一套好评回复逻辑 */
+    /** 对每个已打开标签并行执行同一套好评回复逻辑 */
     async function runGoodReviewReplyAll() {
       const tabIds = tabs.map(t => t.id)
       if (!tabIds.length) {
@@ -978,29 +1124,65 @@
         return
       }
       const total = tabIds.length
+      let completedCount = 0
       let lastMsg = ''
       let anyError = false
-      for (let i = 0; i < tabIds.length; i++) {
+
+      // 1. 启动任务并获取主进程分配的唯一 runId
+      let runId;
+      try {
+        runId = await ipcRenderer.invoke('start-task-run', 'good')
+      } catch (e) {
+        console.error('[前端] 启动任务失败:', e)
+        updateStatus('goodReviewStatus', '启动任务失败: ' + e.message, true)
+        return
+      }
+
+      updateStatus('goodReviewStatus', `正在并行执行 ${total} 个标签...`)
+
+      // 2. 并行执行所有标签页的回复
+      const promises = tabIds.map(async (tid) => {
         if (!document.getElementById('goodReviewSwitch').checked) {
-          updateStatus('goodReviewStatus', '已取消')
           return
         }
-        const tid = tabIds[i]
-        const label = tabSessionLabel(tid)
-        updateStatus('goodReviewStatus', `执行中 ${i + 1}/${total} · ${label}`)
         try {
-          const result = await ipcRenderer.invoke('run-good-review-reply', { tabId: tid })
+          console.log('[前端] 启动并行回复:', tid, 'runId:', runId)
+          const result = await ipcRenderer.invoke('run-good-review-reply', { tabId: tid, runId })
+          console.log('[前端] 并行回复返回:', tid, result)
+          
+          const tab = tabs.find(t => t.id === tid)
+          if (tab && result) {
+            tab.goodReplyCount = result.count || 0
+            updateTabResult(tab, 'good', result.details)
+            renderTabs()
+          }
+
           lastMsg = result.message || '已执行'
         } catch (e) {
+          console.log('[前端] 并行回复失败:', tid, e.message)
           anyError = true
           lastMsg = e.message || '执行失败'
+        } finally {
+          completedCount++
+          if (document.getElementById('goodReviewSwitch').checked) {
+            updateStatus('goodReviewStatus', `正在执行中: 已完成 ${completedCount}/${total} 个标签`)
+          }
         }
+      })
+
+      await Promise.all(promises)
+      updateSummaryUI('good')
+
+      // 3. 更新最终状态
+      if (!document.getElementById('goodReviewSwitch').checked) {
+        updateStatus('goodReviewStatus', 'checked')
+      } else {
+        updateStatus(
+          'goodReviewStatus',
+          anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮 ${total} 个标签 · ${lastMsg}`,
+          anyError
+        )
       }
-      updateStatus(
-        'goodReviewStatus',
-        anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮 ${total} 个标签 · ${lastMsg}`,
-        anyError
-      )
     }
 
     function updateAutoBtnState() {

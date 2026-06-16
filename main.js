@@ -11,6 +11,9 @@ const tabs = new Map() // tabId -> { view, partition }
 /** 弹窗显示时曾从窗口摘下 BrowserView，关闭时需挂回 */
 let shellModalHidingViews = false
 
+let activeRunIds = { bad: 0, good: 0 }
+let isAutoPanelOpen = false
+
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -38,8 +41,17 @@ function createMainWindow() {
 function resizeView(view) {
   if (!mainWindow || !view) return
   const bounds = mainWindow.getBounds()
-  // 顶部留出 80px 给标签栏和地址栏
-  view.setBounds({ x: 0, y: 80, width: bounds.width, height: bounds.height - 80 })
+  const width = isAutoPanelOpen ? bounds.width - 330 : bounds.width
+  // 顶部留出 96px 给标签栏和地址栏
+  view.setBounds({ x: 0, y: 96, width: width, height: bounds.height - 96 })
+}
+
+function hideView(view) {
+  if (!mainWindow || !view) return
+  const bounds = mainWindow.getBounds()
+  const width = isAutoPanelOpen ? bounds.width - 330 : bounds.width
+  // 隐藏到屏幕外，保持原尺寸以便正常渲染和定位
+  view.setBounds({ x: -2000, y: -2000, width: width, height: bounds.height - 96 })
 }
 
 // 创建新标签页（独立会话）
@@ -83,7 +95,7 @@ ipcMain.handle('new-tab', (event, url = 'https://e.dianping.com/app/merchant-pla
   // 隐藏其他标签
   tabs.forEach((tab, id) => {
     tab.active = false
-    tab.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+    hideView(tab.view)
   })
 
   tabs.set(tabId, { view, partition, active: true })
@@ -99,7 +111,7 @@ ipcMain.handle('switch-tab', (event, tabId) => {
       resizeView(tab.view)
     } else {
       tab.active = false
-      tab.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+      hideView(tab.view)
     }
   })
 })
@@ -160,16 +172,10 @@ ipcMain.handle('open-devtools', (event, tabId) => {
 
 // 显示/隐藏自动化面板时调整 BrowserView
 ipcMain.handle('toggle-auto-panel', (event, { tabId, show }) => {
+  isAutoPanelOpen = show
   const tab = tabs.get(tabId)
   if (tab && tab.active) {
-    const bounds = mainWindow.getBounds()
-    if (show) {
-      // 面板打开时，右侧留出 330px
-      tab.view.setBounds({ x: 0, y: 80, width: bounds.width - 330, height: bounds.height - 80 })
-    } else {
-      // 面板关闭时恢复
-      tab.view.setBounds({ x: 0, y: 80, width: bounds.width, height: bounds.height - 80 })
-    }
+    resizeView(tab.view)
   }
 })
 
@@ -198,7 +204,7 @@ ipcMain.handle('shell-modal-set', (event, { open }) => {
       if (t.active) {
         resizeView(t.view)
       } else {
-        t.view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+        hideView(t.view)
       }
     } catch (e) {
       console.log('[shell-modal-set] addBrowserView:', e.message)
@@ -310,8 +316,25 @@ ipcMain.handle('shop-template-delete', (event, id) => {
 // ========== 自动化任务 ==========
 
 let taskAbortFlags = { bad: false, good: false }
+
+function shouldAbort(mode, runId) {
+  if (runId !== undefined && runId !== null) {
+    return runId !== activeRunIds[mode]
+  }
+  return taskAbortFlags[mode]
+}
+
+ipcMain.handle('start-task-run', (event, mode) => {
+  activeRunIds[mode]++
+  taskAbortFlags[mode] = false
+  return activeRunIds[mode]
+})
+
 ipcMain.handle('set-task-abort', (event, { mode, abort }) => {
   taskAbortFlags[mode] = abort
+  if (abort) {
+    activeRunIds[mode]++
+  }
 })
 
 // 辅助函数：延时
@@ -325,8 +348,7 @@ function randomSleep(minMs, maxMs) {
   return sleep(ms)
 }
 
-
-async function executeReviewTask(tab, mode) {
+async function executeReviewTask(tab, mode, runId) {
   const taskName = mode === 'bad' ? '差评监控' : '好评回复';
   taskAbortFlags[mode] = false; // 开始前重置中止标志
   
@@ -335,19 +357,9 @@ async function executeReviewTask(tab, mode) {
     return { message: '标签页不存在' }
   }
 
-  // 获取配置的门店列表
+  // 获取本地配置的门店列表
   const shops = shopService.getAll()
-  console.log(`[${taskName}] 开始执行，配置门店数量:`, shops.length)
-
-  // 清除上一次遗留的预警弹窗
-  try {
-    await tab.view.webContents.executeJavaScript(`
-      (function() {
-        var el = document.getElementById('bad-review-alert-popup');
-        if (el) el.remove();
-      })()
-    `)
-  } catch(e) {}
+  console.log(`[${taskName}] 开始执行 API 自动化，配置门店数量:`, shops.length)
 
   if (shops.length === 0) {
     console.log(`[${taskName}] 错误: 未配置门店`)
@@ -362,561 +374,347 @@ async function executeReviewTask(tab, mode) {
       }
   }
 
+  // 辅助函数：归一化门店名称
+  function normalizeShopName(name) {
+    if (!name) return '';
+    return name.replace(/[\s\(\)（）]/g, '').toLowerCase();
+  }
+
+  // 辅助函数：门店匹配
+  function isShopMatched(cfgName, apiShop) {
+    const shopName = apiShop.shopName || '';
+    const branchName = apiShop.branchName || '';
+    const combined = branchName ? `${shopName}（${branchName}）` : shopName;
+    
+    const normCfg = normalizeShopName(cfgName);
+    const normCombined = normalizeShopName(combined);
+    
+    return normCfg === normCombined || normCombined.includes(normCfg) || normCfg.includes(normCombined);
+  }
+
   try {
-    // Step 1: 点击左侧菜单「评价管理」
-    console.log(`[${taskName}] Step 1: 点击「评价管理」菜单`)
-    const step1 = await tab.view.webContents.executeJavaScript(`
-      (function() {
-        const menuItems = document.querySelectorAll('.menu-item-root')
-        for (let item of menuItems) {
-          const title = item.querySelector('.title')
-          if (title && title.textContent.trim() === '评价管理') {
-            item.querySelector('.main-container').click()
-            return true
+    // 确保当前页面属于点评商户后台
+    const currentUrl = tab.view.webContents.getURL();
+    if (!currentUrl.includes('dianping.com')) {
+      return { message: '当前未处于大众点评页面，请先登录并打开点评商户后台' };
+    }
+
+    if (shouldAbort(mode, runId)) return { message: '任务已被手动取消' };
+    mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '🔍 获取门店列表中...' });
+
+    // 1. 获取账号关联的全部门店列表 (API)
+    console.log(`[${taskName}] Step 1: 正在通过 API 获取所有门店列表...`)
+    const apiShopList = await tab.view.webContents.executeJavaScript(`
+      (async function() {
+        try {
+          const res = await fetch('/gateway/merchant/general/shopinfo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bizType: "review_manage_checkbox",
+              device: "pc",
+              currentTab: "city",
+              shopIds: "0"
+            })
+          });
+          const data = await res.json();
+          if (data && data.code === 200 && data.data) {
+            return data.data.shopInfoList || [];
           }
+        } catch (e) {
+          console.error('[API] 获取门店列表异常:', e.message);
         }
-        return false
+        return [];
       })()
-    `)
-    console.log(`[${taskName}] Step 1 结果:`, step1)
+    `);
 
-    await sleep(1000)
+    if (shouldAbort(mode, runId)) return { message: '任务已被手动取消' };
 
-    // Step 2: 点击「门店评价」
-    console.log(`[${taskName}] Step 2: 点击「门店评价」`)
-    const step2 = await tab.view.webContents.executeJavaScript(`
-      (function() {
-        const menuItems = document.querySelectorAll('.menu-item-root')
-        for (let item of menuItems) {
-          const title = item.querySelector('.title')
-          if (title && title.textContent.trim() === '门店评价') {
-            item.querySelector('.main-container').click()
-            return true
-          }
-        }
-        return false
-      })()
-    `)
-    console.log(`[${taskName}] Step 2 结果:`, step2)
+    console.log(`[${taskName}] 接口返回门店总数:`, apiShopList.length);
+    if (apiShopList.length === 0) {
+      mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '❌ 门店列表获取失败' });
+      return { message: '无法获取点评商户门店列表，请确保已登录' };
+    }
 
-    await sleep(2000)
-
-    // Step 3: 点击「点评评价」Tab
-    console.log(`[${taskName}] Step 3: 点击「点评评价」Tab`)
-    const step3 = await tab.view.webContents.executeJavaScript(`
-      (function() {
-        const tabItems = document.querySelectorAll('.mtd-tabs-item')
-        for (let item of tabItems) {
-          const label = item.querySelector('.mtd-tabs-item-label')
-          if (label && label.textContent.trim() === '点评评价') {
-            item.click()
-            return true
-          }
-        }
-        return false
-      })()
-    `)
-    console.log(`[${taskName}] Step 3 结果:`, step3)
-
-    await sleep(1500)
-
-    // 打开门店下拉（主文档或与 Step 4 一致的 iframe）
-    async function openShopSelectDropdown() {
-      const wc = tab.view.webContents
-      const pageInfo = await wc.executeJavaScript(`
-        (function() {
-          return {
-            hasShopInput: !!(document.querySelector('.shop-select-input') || document.querySelector('#shopName') || document.querySelector('.shop-name')),
-            iframeCount: document.querySelectorAll('iframe').length
-          }
-        })()
-      `)
-      if (!pageInfo.hasShopInput && pageInfo.iframeCount > 0) {
-        for (const frame of wc.mainFrame.frames) {
-          try {
-            const result = await frame.executeJavaScript(`
-              (function() {
-                const shopInput = document.querySelector('.shop-select-input') || document.querySelector('#shopName') || document.querySelector('.shop-name')
-                if (shopInput) {
-                  shopInput.click()
-                  return { found: true }
-                }
-                return { found: false }
-              })()
-            `)
-            if (result.found) break
-          } catch (e) {
-            console.log(`[${taskName}] iframe 打开下拉失败:`, e.message)
-          }
-        }
+    // 2. 匹配本地配置的门店
+    const matchedShops = []; // [{ cfg, api }]
+    for (const cfgShop of shops) {
+      const matchedApiShop = apiShopList.find(apiShop => isShopMatched(cfgShop.name, apiShop));
+      if (matchedApiShop) {
+        matchedShops.push({
+          cfg: cfgShop,
+          api: matchedApiShop
+        });
+        console.log(`[${taskName}] 门店匹配成功: [配置: ${cfgShop.name}] <-> [API: ${matchedApiShop.shopName}${matchedApiShop.branchName ? '(' + matchedApiShop.branchName + ')' : ''}, ID: ${matchedApiShop.shopId}]`);
       } else {
-        await wc.executeJavaScript(`
-          (function() {
-            const shopInput = document.querySelector('.shop-select-input') || document.querySelector('#shopName') || document.querySelector('.shop-name')
-            if (shopInput) shopInput.click()
-          })()
-        `)
+        console.log(`[${taskName}] 门店未在 API 列表中匹配到: [配置: ${cfgShop.name}]`);
       }
-      await sleep(1500)
     }
 
-    async function clickShopSelectConfirm() {
-      const wc = tab.view.webContents
-      const ok = await wc.executeJavaScript(`
-        (function() {
-          var el = document.querySelector(
-            '.shop-select-panel-footer .shop-select-panel-footer-actions .mtdu-btn-primary'
-          )
-          if (el) {
-            el.click()
-            return true
-          }
-        }())
-      `)
-      if (ok) {
-        console.log(`[${taskName}] 已点击门店选择「确定」`)
-        await sleep(300)
-        return true
-      }
-      return false
+    if (shouldAbort(mode, runId)) return { message: '任务已被手动取消' };
+    mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: `👥 匹配成功 ${matchedShops.length} 个门店` });
+
+    if (matchedShops.length === 0) {
+      mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '⚠ 未匹配到配置的门店' });
+      return { message: '未找到任何与配置相匹配的点评门店' };
     }
 
-    async function clickShopSelectCancel() {
-      const wc = tab.view.webContents
-      const ok = await wc.executeJavaScript(`
-        (function() {
-          var el = document.querySelector(
-            '.shop-select-panel-footer .shop-select-panel-footer-actions .mtdu-btn-panel'
-          )
-          if (el) {
-            el.click()
-            return true
-          }
-        }())
-      `)
-      if (ok) {
-        console.log(`[${taskName}] 已点击门店选择「取消」`)
-        await sleep(300)
-        return true
+    // 3. 循环通过 API 拉取每个门店的评价列表
+    console.log(`[${taskName}] Step 2: 遍历匹配门店并拉取点评...`);
+    const now = Date.now();
+    const startTime = now - 30 * 24 * 60 * 60 * 1000; // 30 天前
+    const endTime = now;
+
+    let totalBadReviews = 0;
+    let totalGoodReplies = 0;
+    const badReviewDetails = [];
+    const goodReplyDetails = [];
+    const violationAlerts = []; 
+    let totalShopRuns = 0;
+
+    for (const item of matchedShops) {
+      if (shouldAbort(mode, runId)) {
+        mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '已取消' });
+        return { message: '任务已被手动取消' };
       }
-      return false
-    }
 
-    // Step 4: 打开门店下拉选择框
-    console.log(`[${taskName}] Step 4: 打开门店下拉选择框`)
-    await openShopSelectDropdown()
+      const shopId = item.api.shopId;
+      const displayName = `${item.api.shopName}${item.api.branchName ? '(' + item.api.branchName + ')' : ''}`;
+      console.log(`[${taskName}] 正在拉取门店 [${displayName}] (ID: ${shopId}) 的数据...`);
 
-    const shopNames = shops.map(s => s.name)
-    console.log(`[${taskName}] Step 5: 本地配置的门店:`, shopNames)
-
-    let totalBadReviews = 0
-    let totalGoodReplies = 0
-    const badReviewDetails = []
-    const violationAlerts = [] 
-    let totalShopRuns = 0
-    let abortedEarly = false
-    let abortMessage = ''
-
-    const domShops = await tab.view.webContents.executeJavaScript(`
-      (function() {
-        const items = document.querySelectorAll('.shopFilter .shop-item')
-        const results = []
-        for (let i = 0; i < items.length; i++) {
-          const nameEl = items[i].querySelector('.slot-item-name-text')
-          if (nameEl) {
-            results.push({ name: nameEl.textContent.trim(), index: i })
-          }
+      // 提取该店铺的点评 (同时查询平台 1 点评 和平台 2 美团)
+      for (const platformVal of [1, 2]) {
+        if (shouldAbort(mode, runId)) {
+          mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '已取消' });
+          return { message: '任务已被手动取消' };
         }
-        return results
-      })()
-    `)
+        const platformName = platformVal === 1 ? '点评' : '美团';
+        mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: `📡 [${item.api.shopName}] 拉取${platformName}点评...` });
+        console.log(`[${taskName}] 拉取平台: ${platformName} (ID: ${platformVal})`);
 
-    if (domShops.length === 0) {
-      console.log(`[${taskName}] 获取到的 DOM 门店列表为空，点击取消并结束本标签任务`)
-      await clickShopSelectCancel()
-      abortedEarly = true
-      abortMessage = '门店列表为空，已取消'
-    } else {
-      console.log(`[${taskName}] DOM 中共有 ` + domShops.length + ` 个门店项，开始逐一匹配配置...`)
-      
-      for (let i = 0; i < domShops.length; i++) {
-        const domShopName = domShops[i].name
-        const originalIndex = domShops[i].index
-        
-        if (!domShopName || domShopName === '全部门店') continue
-
-        const matchedShop = shops.find(cfg => domShopName.includes(cfg.name) || cfg.name.includes(domShopName))
-        
-        if (!matchedShop) {
-           console.log(`[${taskName}] 跳过不在配置中的门店:`, domShopName)
-           continue
-        }
-
-        console.log(`[${taskName}] 处理门店项: [` + domShopName + `] (位于列表第 ` + (i + 1) + ` 项)`)
-
-        if (taskAbortFlags[mode]) return { message: '任务已被手动取消' }
-
-        if (totalShopRuns > 0) {
-          console.log(`[${taskName}] 重新打开门店选择框（下一项）`)
-          await openShopSelectDropdown()
-          await sleep(500)
-        }
-
-        let selectResult = { success: false }
-        try {
-          selectResult = await tab.view.webContents.executeJavaScript(`
-            (function() {
-              const matchIndex = ${originalIndex};
-              const items = document.querySelectorAll('.shopFilter .shop-item');
-              if (items[matchIndex]) {
-                const radio = items[matchIndex].querySelector('.mtdu-radio, .mtdu-checkbox-input');
-                if (radio) {
-                  radio.click();
-                } else {
-                  items[matchIndex].click();
-                }
-                return { success: true, name: "${domShopName}" };
-              }
-              return { success: false };
-            })()
-          `)
-
-          console.log(`[${taskName}] 选择门店结果:`, selectResult)
-
-          if (!selectResult.success) {
-            console.log(`[${taskName}] 未能选中 DOM 中的第`, i + 1, '项:', domShopName, '→ 点击取消关闭面板')
-            await clickShopSelectCancel()
-            continue
-          }
-        } catch (err) {
-          console.log(`[${taskName}] 选择门店出错:`, err.message, '→ 点击取消关闭面板')
-          await clickShopSelectCancel()
-          continue
-        }
-
-        await sleep(500)
-
-        try {
-          console.log(`[${taskName}] 点击确定按钮`)
-          const ok = await clickShopSelectConfirm()
-        } catch (err) {}
-
-        console.log(`[${taskName}] 正在加载门店:`, domShopName)
-        await sleep(4000)
-
-        const helper = new AutoHelper(tab.view.webContents)
-        let reviewFrame = helper.findFrame('rating-management')
-        if (!reviewFrame) reviewFrame = helper.findFrame('shop-comment')
-
-        let filterSuccess = false
-
-        if (reviewFrame) {
-          console.log(`[${taskName}] 找到评价 iframe:`, reviewFrame.url)
-          await helper.waitForSelector(reviewFrame, '.mtd-tabs-item-label', 10000).catch(() => {})
-
-          for (const platform of ['点评', '美团']) {
-            if (taskAbortFlags[mode]) return { message: '任务已被手动取消' }
-            console.log(`[${taskName}] 正在切换并处理平台: ${platform}`)
-
-            const platformTriggerOk = await reviewFrame.executeJavaScript(`
-              (function() {
-                var labels = document.querySelectorAll('.filter-label');
-                for(var j=0; j<labels.length; j++) {
-                  if(labels[j].textContent.trim() === '平台') {
-                    var wrap = labels[j].nextElementSibling;
-                    var trigger = wrap && (wrap.querySelector('.mtd-input') || wrap.querySelector('.mtd-select-input') || wrap);
-                    if (trigger) { trigger.click(); return true; }
-                  }
-                }
-                return false;
-              })()
-            `).catch(() => false)
-            await sleep(800) 
-
-            const itemClickOk = await reviewFrame.executeJavaScript(`
-              (function() {
-                var items = document.querySelectorAll('.mtd-dropdown-menu-item');
-                for(var j=0; j<items.length; j++) {
-                  if(items[j].textContent.trim() === '${platform}') {
-                    items[j].click();
-                    return true;
-                  }
-                }
-                try {
-                  var topItems = window.top.document.querySelectorAll('.mtd-dropdown-menu-item');
-                  for(var k=0; k<topItems.length; k++) {
-                    if(topItems[k].textContent.trim() === '${platform}') {
-                      topItems[k].click();
-                      return true;
-                    }
-                  }
-                } catch(e) {}
-                return false;
-              })()
-            `).catch(() => false)
-            await sleep(3000)
-
-            // Step A: 点击「评价明细」标签
-            let tabOk = await helper.click(reviewFrame, `
-              el = null;
-              var labels = document.querySelectorAll('.mtd-tabs-item-label');
-              for(var j=0; j<labels.length; j++) {
-                 if(labels[j].textContent.indexOf('评价明细') >= 0) { el = labels[j]; break; }
-              }
-            `)
-            await sleep(2000)
-
-            // 如果是差评模式，提取违规预警
-            if (mode === 'bad') {
-              try {
-                const violations = await reviewFrame.executeJavaScript(`
-                  (function() {
-                    var items = document.querySelectorAll('.shop-rating-overview__complaint-item');
-                    var results = [];
-                    for (var i = 0; i < items.length; i++) {
-                      var titleEl = items[i].querySelector('.shop-rating-overview__complaint-title span');
-                      var resultEl = items[i].querySelector('.shop-rating-overview__complaint-result');
-                      var badgeEl = items[i].querySelector('.shop-rating-overview__complaint-badge');
-                      var linkEl = items[i].querySelector('.shop-rating-overview__complaint-button');
-                      results.push({
-                        title: titleEl ? titleEl.textContent.trim() : '',
-                        badge: badgeEl ? badgeEl.textContent.trim() : '',
-                        desc: resultEl ? resultEl.textContent.trim().replace(/\s+/g, ' ') : '',
-                        link: linkEl ? linkEl.href : ''
-                      });
-                    }
-                    return results;
-                  })()
-                `)
-                if (violations && violations.length > 0) {
-                  for (const v of violations) {
-                    if (v.title || v.desc) {
-                      violationAlerts.push({ shop: domShopName + ' (' + platform + ')', ...v })
-                    }
-                  }
-                }
-              } catch (e) {}
-            }
-
-            // Step B: 点击「近30天」
-            let timeOk = await helper.click(reviewFrame, `
-              el = null;
-              var btns = document.querySelectorAll('.shop-rating-overview__tab, .quick-filter-btn span, .quick-filter-btn');
-              for(var j=0; j<btns.length; j++) {
-                 if(btns[j].textContent.indexOf('近30天') >= 0) { el = btns[j]; break; }
-              }
-            `)
-            await sleep(2000)
-
-            // Step C: 点击星级
-            const starTarget = mode === 'bad' ? '差评' : '好评';
-            let gradeOk = await helper.click(reviewFrame, `
-              el = null;
-              var options = document.querySelectorAll('.review-filter__option');
-              for(var j=0; j<options.length; j++) {
-                 if(options[j].textContent.indexOf('${starTarget}') >= 0) { el = options[j]; break; }
-              }
-            `)
-            await sleep(3000) 
-
-            // Step D: 执行操作
-            if (mode === 'bad') {
-              let badReviewResult = null
-              try {
-                badReviewResult = await reviewFrame.executeJavaScript(`
-                  (function() {
-                    var items = document.querySelectorAll('.review-item, .comment-item, .comment-list-item');
-                    if (items.length === 0) {
-                      return { hasBadReviews: false, count: 0, message: '页面未发现任何差评元素', reviews: [] };
-                    }
-                    function parseTime(item) {
-                      var el = item.querySelector('.review-item__time, .comment-time');
-                      return el ? el.textContent.trim().replace('线上消费后评价', '').trim() : '';
-                    }
-                    function parseRating(item) {
-                      var rateEl = item.querySelector('.mtd-rate[aria-valuenow]');
-                      if (rateEl) return rateEl.getAttribute('aria-valuenow') + '星';
-                      var el = item.querySelector('.comment-star');
-                      if (!el) return '';
-                      var match = el.className.match(/(?:comment-rank|star-)(\d+)/);
-                      return match ? (parseInt(match[1]) / 10) + '星' : '';
-                    }
-                    function parseContent(item) {
-                      var el = item.querySelector('.review-item__comment, .comment-text');
-                      if (!el) return '';
-                      var t = el.textContent.trim().replace(/\s+/g, ' ');
-                      return t.length > 120 ? t.slice(0, 120) + '…' : t;
-                    }
-                    var reviews = [];
-                    for (var j = 0; j < items.length; j++) {
-                      var isReplied = items[j].querySelector('.review-item__reply-item, .reply-item') !== null
-                                   || items[j].innerHTML.indexOf('商家回复') !== -1;
-                      if (!isReplied) {
-                        reviews.push({
-                          reviewTime: parseTime(items[j]),
-                          rating: parseRating(items[j]),
-                          contentPreview: parseContent(items[j])
-                        });
-                      }
-                    }
-                    if (reviews.length === 0) {
-                      return { hasBadReviews: false, count: 0, message: '找到 ' + items.length + ' 条差评，但已全部回复', reviews: [] };
-                    }
-                    return { hasBadReviews: true, count: reviews.length, message: '发现' + reviews.length + '条未回复差评 (共' + items.length + '条)', reviews: reviews };
-                  })()
-                `)
-              } catch(e) {}
-
-              if (badReviewResult && badReviewResult.hasBadReviews) {
-                totalBadReviews += badReviewResult.count
-                badReviewDetails.push({
-                  shop: selectResult.name + ' (' + platform + ')',
-                  count: badReviewResult.count,
-                  reviews: badReviewResult.reviews || []
+        const reviewData = await tab.view.webContents.executeJavaScript(`
+          (async function() {
+            try {
+              const res = await fetch('/gateway/merchant/review/list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  platform: ${platformVal},
+                  shopIds: [${shopId}],
+                  tagId: ${mode === 'bad' ? 3 : 1},
+                  startTime: ${startTime},
+                  endTime: ${endTime},
+                  aiReply: false,
+                  pageNo: 1,
+                  pageSize: 10
                 })
+              });
+              const data = await res.json();
+              if (data && data.code === 200 && data.data) {
+                return data.data;
               }
-            } else if (mode === 'good') {
-               const shopTemplates = templates.filter(t => t.shop_id === matchedShop.id);
-               if (shopTemplates.length === 0) {
-                 console.log(`[${taskName}] 当前门店无可用好评模板，跳过:`, domShopName);
-                 continue;
-               }
-               // 执行好评回复
-               const replyResult = await reviewFrame.executeJavaScript(`
-                 (async function() {
-                   // 将模板传入上下文
-                   var templates = ${JSON.stringify(shopTemplates)};
-                   function getRandomTemplate() {
-                     var t = templates[Math.floor(Math.random() * templates.length)];
-                     return t ? (t.content || t.text || t) : '感谢您的好评，我们会继续努力！';
-                   }
-                   
-                   var repliedCount = 0;
-                   var sleep = ms => new Promise(r => setTimeout(r, ms));
-                   
-                   var maxTries = 50;
-                   var tries = 0;
-                   var handledItemsTexts = new Set();
-                   
-                   while (tries < maxTries) {
-                     tries++;
-                     var items = document.querySelectorAll('.review-item, .comment-item, .comment-list-item');
-                     var targetItem = null;
-                     var targetCommentText = "";
-                     
-                     for (var j = 0; j < items.length; j++) {
-                       var item = items[j];
-                       var textContext = item.textContent || "";
-                       var commentEl = item.querySelector('.review-item__comment, .comment-text');
-                       var commentText = commentEl ? commentEl.textContent.trim() : textContext.trim().substring(0, 100);
-
-                       var isReplied = item.querySelector('.review-item__reply-item, .reply-item, .merchant-reply, .review-item__reply-content') !== null
-                                    || textContext.indexOf('商家回复') !== -1
-                                    || textContext.indexOf('已回复') !== -1
-                                    || item.dataset.skipReply === 'true'
-                                    || handledItemsTexts.has(commentText); // 防死循环和重复回复标记
-
-                       if (!isReplied) {
-                         targetItem = item;
-                         targetCommentText = commentText;
-                         break;
-                       }
-                     }
-                     
-                     if (!targetItem) {
-                       break; // 没有需要回复的了
-                     }
-
-                     // 寻找回复按钮
-                     var buttons = Array.from(targetItem.querySelectorAll('button, a'));
-                     var replyBtn = buttons.find(b => {
-                       var t = b.textContent.trim();
-                       return t === '回复' || t === '回复评价' || t === '去回复';
-                     });
-
-                     if (!replyBtn) {
-                       targetItem.dataset.skipReply = 'true';
-                       handledItemsTexts.add(targetCommentText);
-                       continue;
-                     }
-
-                     replyBtn.click();
-                     await sleep(1500);
-
-                     // 寻找输入框 (有些页面的回复框是弹窗，挂在body下，所以也从全局兜底)
-                     var textarea = targetItem.querySelector('textarea.mtd-textarea, textarea[placeholder*="回复"], textarea.reply-input') 
-                                 || document.querySelector('textarea.mtd-textarea, textarea[placeholder*="回复"], textarea.reply-input');
-                     
-                     if (textarea) {
-                        var text = getRandomTemplate();
-                        textarea.focus();
-                        var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
-                        if (nativeSetter) {
-                          nativeSetter.call(textarea, text);
-                        } else {
-                          textarea.value = text;
-                        }
-                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                        await sleep(800);
-                        
-                        // 点击发送/提交
-                        var submitBtn = targetItem.querySelector('.review-item__reply-send') || document.querySelector('.review-item__reply-send');
-                        if (!submitBtn) {
-                          var allBtns = Array.from(document.querySelectorAll('button'));
-                          submitBtn = allBtns.find(b => {
-                            var t = b.textContent.trim();
-                            return t === '发送' || t === '提交' || t === '确定';
-                          });
-                        }
-                        
-                        if (submitBtn) {
-                          console.log('[好评回复] 找到发送按钮并点击:', submitBtn.textContent);
-                          submitBtn.click();
-                          repliedCount++;
-                           targetItem.dataset.skipReply = 'true';
-                           handledItemsTexts.add(targetCommentText);
-                          await sleep(5000); // 提交后等待DOM刷新
-                        } else {
-                          targetItem.dataset.skipReply = 'true';
-                           handledItemsTexts.add(targetCommentText);
-                        }
-                     } else {
-                        targetItem.dataset.skipReply = 'true';
-                         handledItemsTexts.add(targetCommentText);
-                     }
-                   }
-                   return { count: repliedCount };
-                 })()
-               `).catch(e => { console.log('好评自动回复异常:', e.message); return { count: 0 }; });
-               
-               if (replyResult && replyResult.count > 0) {
-                  totalGoodReplies += replyResult.count;
-               }
+            } catch (e) {
+              console.error('[API] 拉取评价异常:', e.message);
             }
-          }
-          filterSuccess = true
+            return null;
+          })()
+        `);
+
+        if (shouldAbort(mode, runId)) {
+          mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '已取消' });
+          return { message: '任务已被手动取消' };
         }
-        totalShopRuns++
+
+        if (!reviewData || !reviewData.reviewDetails) {
+          console.log(`[${taskName}] [${displayName}] [${platformName}] 无评价数据或接口异常`);
+          continue;
+        }
+
+        const reviewDetails = reviewData.reviewDetails;
+        console.log(`[${taskName}] [${displayName}] [${platformName}] 近30天评价总数:`, reviewData.totalSize || reviewDetails.length);
+
+        const shopBadReviews = [];
+        const shopNeedReplyGoodReviews = [];
+
+        for (const detail of reviewDetails) {
+          const reviewInfo = detail.reviewDetail && detail.reviewDetail.reviewInfo;
+          if (!reviewInfo) continue;
+
+          const rawStar = reviewInfo.star || 0;
+          const starLevel = rawStar > 5 ? rawStar / 10 : rawStar;
+
+          // 核心判定：replyList 不为空则不用回复，为空则需要回复
+          const replyList = detail.reviewDetail && detail.reviewDetail.replyList;
+          const isReplied = !!(replyList && replyList.length > 0);
+
+          if (mode === 'bad' && !isReplied) {
+            let contentPreview = reviewInfo.content || reviewInfo.comment || '';
+            if (contentPreview.length > 120) {
+              contentPreview = contentPreview.slice(0, 120) + '…';
+            }
+            let reviewTime = '';
+            if (reviewInfo.addTime) {
+              const t = new Date(reviewInfo.addTime);
+              reviewTime = isNaN(t.getTime()) ? '' : t.toLocaleString('zh-CN');
+            }
+
+            shopBadReviews.push({
+              reviewTime: reviewTime || '未知时间',
+              rating: `${starLevel}星`,
+              contentPreview: contentPreview
+            });
+          }
+
+          if (mode === 'good' && !isReplied) {
+            shopNeedReplyGoodReviews.push(detail);
+          }
+        }
+
+        if (mode === 'bad' && shopBadReviews.length > 0) {
+          totalBadReviews += shopBadReviews.length;
+          badReviewDetails.push({
+            shop: `${displayName} (${platformName})`,
+            count: shopBadReviews.length,
+            reviews: shopBadReviews
+          });
+        }
+
+        // 4. 如果是好评回复，且有未回复的好评，我们直接通过 API 发起回复
+        if (mode === 'good' && shopNeedReplyGoodReviews.length > 0) {
+          if (shouldAbort(mode, runId)) {
+            mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '已取消' });
+            return { message: '任务已被手动取消' };
+          }
+          const shopTemplates = templates.filter(t => t.shop_id === item.cfg.id);
+          if (shopTemplates.length === 0) {
+            console.log(`[${taskName}] [${displayName}] 无可用好评模板，跳过回复`);
+            continue;
+          }
+
+          mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: `✍️ [${item.api.shopName}] 回复好评中...` });
+          console.log(`[${taskName}] 发现 [${displayName}] (${platformName}) 有 ${shopNeedReplyGoodReviews.length} 条未回复好评，开始执行 API 回复...`);
+
+          const replyResult = await tab.view.webContents.executeJavaScript(`
+            (async function() {
+              const replies = ${JSON.stringify(shopNeedReplyGoodReviews)};
+              const templates = ${JSON.stringify(shopTemplates)};
+              let successCount = 0;
+              
+              function getRandomTemplate() {
+                const t = templates[Math.floor(Math.random() * templates.length)];
+                return t ? (t.content || t.text || t) : '感谢您的好评，我们会继续努力！';
+              }
+              
+              const sleep = ms => new Promise(r => setTimeout(r, ms));
+              
+              for (const detail of replies) {
+                try {
+                  const reviewInfo = detail.reviewDetail && detail.reviewDetail.reviewInfo;
+                  const reviewId = reviewInfo ? reviewInfo.reviewId : null;
+                  
+                  if (!reviewId) continue;
+                  
+                  const content = getRandomTemplate();
+                  
+                  const res = await fetch('/review/app/reply/ajax/reviewreply', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      clientType: 1,
+                      platform: ${platformVal},
+                      content: content,
+                      replyId: 0,
+                      shopIdStr: String(${shopId}),
+                      reviewId: reviewId
+                    })
+                  });
+                  
+                  const resData = await res.json();
+                  console.log('[API好评回复] 回复结果:', resData);
+                  if (resData && (resData.code === 200 || resData.success === true)) {
+                    successCount++;
+                  }
+                  
+                  await sleep(1000); // 每次回复之间延迟 1 秒防频率限制
+                } catch (e) {
+                  console.error('[API好评回复] 发生异常:', e.message);
+                }
+              }
+              return { count: successCount };
+            })()
+          `).catch(e => { console.log('好评自动回复异常:', e.message); return { count: 0 }; });
+
+          if (replyResult && replyResult.count > 0) {
+            totalGoodReplies += replyResult.count;
+            goodReplyDetails.push({
+              shop: `${displayName} (${platformName})`,
+              count: replyResult.count
+            });
+          }
+        }
       }
+
+      // 5. 违规预警：如果是差评模式，在当前页面直接爬取
+      if (mode === 'bad') {
+        const helper = new AutoHelper(tab.view.webContents);
+        let reviewFrame = helper.findFrame('rating-management') || helper.findFrame('shop-comment');
+        if (reviewFrame) {
+          try {
+            const violations = await reviewFrame.executeJavaScript(`
+              (function() {
+                var items = document.querySelectorAll('.shop-rating-overview__complaint-item');
+                var results = [];
+                for (var i = 0; i < items.length; i++) {
+                  var titleEl = items[i].querySelector('.shop-rating-overview__complaint-title span');
+                  var resultEl = items[i].querySelector('.shop-rating-overview__complaint-result');
+                  var badgeEl = items[i].querySelector('.shop-rating-overview__complaint-badge');
+                  var linkEl = items[i].querySelector('.shop-rating-overview__complaint-button');
+                  results.push({
+                    title: titleEl ? titleEl.textContent.trim() : '',
+                    badge: badgeEl ? badgeEl.textContent.trim() : '',
+                    desc: resultEl ? resultEl.textContent.trim().replace(/\\s+/g, ' ') : '',
+                    link: linkEl ? linkEl.href : ''
+                  });
+                }
+                return results;
+              })()
+            `);
+            if (violations && violations.length > 0) {
+              for (const v of violations) {
+                if (v.title || v.desc) {
+                  violationAlerts.push({ shop: `${displayName}`, ...v });
+                }
+              }
+            }
+          } catch (e) {
+            console.log(`[${taskName}] 提取违规预警异常:`, e.message);
+          }
+        }
+      }
+
+      totalShopRuns++;
+      await sleep(1000); // 门店之间加 1s 延迟防频率风控
     }
 
+    // 6. 任务结束处理与通知推送
     if (mode === 'bad') {
-        const hasViolations = violationAlerts.length > 0
+        const hasViolations = violationAlerts.length > 0;
         if (totalBadReviews > 0 || hasViolations) {
           mainWindow.webContents.send('bad-review-found', {
             tabId: tab.id,
             totalCount: totalBadReviews,
             details: badReviewDetails,
             violations: violationAlerts
-          })
+          });
+
           if (Notification.isSupported()) {
-            const notifParts = []
-            if (totalBadReviews > 0) notifParts.push(`${totalBadReviews} 条未回复差评`)
-            if (hasViolations) notifParts.push(`${violationAlerts.length} 条违规预警`)
+            const notifParts = [];
+            if (totalBadReviews > 0) notifParts.push(`${totalBadReviews} 条未回复差评`);
+            if (hasViolations) notifParts.push(`${violationAlerts.length} 条违规预警`);
             new Notification({
               title: hasViolations && totalBadReviews === 0 ? '违规预警' : '差评/违规提醒',
               body: `发现 ${notifParts.join('、')}，请及时处理！`
-            }).show()
+            }).show();
           }
 
           // 企微机器人推送
@@ -953,45 +751,65 @@ async function executeReviewTask(tab, mode) {
             console.log('企微机器人推送异常:', e.message);
           }
         } else {
-          mainWindow.webContents.send('bad-review-cleared', { tabId: tab.id })
+          mainWindow.webContents.send('bad-review-cleared', { tabId: tab.id });
         }
         
-        const msgParts = []
-        if (totalBadReviews > 0) msgParts.push(`${totalBadReviews} 条差评`)
-        if (hasViolations) msgParts.push(`${violationAlerts.length} 条违规预警`)
+        const msgParts = [];
+        if (totalBadReviews > 0) msgParts.push(`${totalBadReviews} 条差评`);
+        if (hasViolations) msgParts.push(`${violationAlerts.length} 条违规预警`);
     
+        mainWindow.webContents.send('task-progress-update', {
+          tabId: tab.id,
+          mode,
+          text: totalBadReviews > 0 || hasViolations
+            ? `🔴 差评:${totalBadReviews}条${hasViolations ? ` 违规:${violationAlerts.length}条` : ''}`
+            : `✅ 无异常`
+        });
+
         return {
           message: msgParts.length > 0
             ? `发现 ${msgParts.join('、')}！`
-            : abortedEarly
-              ? (abortMessage || '已取消门店选择')
-              : `已检查 ${totalShopRuns} 个门店实例，暂无异常`,
+            : `已检查 ${totalShopRuns} 个门店实例，暂无异常`,
           totalBadReviews: totalBadReviews,
           details: badReviewDetails,
-          violations: violationAlerts,
-          abortedNoShop: abortedEarly
-        }
+          violations: violationAlerts
+        };
     } else {
+        mainWindow.webContents.send('task-progress-update', {
+          tabId: tab.id,
+          mode,
+          text: `✅ 回复完成 (已回:${totalGoodReplies}条)`
+        });
+
         return {
            message: `自动回复完成，共回复 ${totalGoodReplies} 条好评`,
-           count: totalGoodReplies
-        }
+           count: totalGoodReplies,
+           details: goodReplyDetails
+        };
     }
 
   } catch (e) {
-    console.log(`[${taskName}] 执行失败:`, e.message)
-    return { message: '执行失败: ' + e.message }
+    console.log(`[${taskName}] 执行失败:`, e.message);
+    mainWindow.webContents.send('task-progress-update', {
+      tabId: tab.id,
+      mode,
+      text: `❌ 执行失败`
+    });
+    return { message: '执行失败: ' + e.message };
   }
 }
 
 // 差评监控
-ipcMain.handle('run-bad-review-monitor', async (event, tabId) => {
-  return await executeReviewTask(tabs.get(tabId), 'bad');
+ipcMain.handle('run-bad-review-monitor', async (event, payload) => {
+  const tabId = typeof payload === 'string' ? payload : payload?.tabId;
+  const runId = payload?.runId;
+  return await executeReviewTask(tabs.get(tabId), 'bad', runId);
 });
 
 // 好评自动回复
 ipcMain.handle('run-good-review-reply', async (event, payload) => {
   const tabId = typeof payload === 'string' ? payload : payload?.tabId;
-  return await executeReviewTask(tabs.get(tabId), 'good');
+  const runId = payload?.runId;
+  return await executeReviewTask(tabs.get(tabId), 'good', runId);
 });
 

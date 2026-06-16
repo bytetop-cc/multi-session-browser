@@ -24,10 +24,16 @@ jobs:
     - name: 安装依赖
       run: npm install
 
+    - name: 重新编译 Electron 原生依赖 (better-sqlite3)
+      run: npx electron-rebuild -f -w better-sqlite3
+
     - name: 打包 Windows 应用程序
       run: npm run build:win
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 防止部分下载被限制
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 防止 GitHub API 限制，加快下载
+        # 如果编译或打包下载依赖时遇到网络慢/超时，可解除下面注释使用国内镜像
+        # ELECTRON_MIRROR: "https://npmmirror.com/mirrors/electron/"
+        # ELECTRON_HEADERS_DISTURL: "https://npmmirror.com/mirrors/electron/"
 
     - name: 上传安装包到 GitHub
       uses: actions/upload-artifact@v4
@@ -36,3 +42,4 @@ jobs:
         path: |
           dist/*.exe
         retention-days: 7 # 安装包保留 7 天
+
