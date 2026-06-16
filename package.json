@@ -8,7 +8,8 @@
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:all": "electron-builder --mac --win",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "dev": "nodemon --watch main.js --watch db.js --exec electron ."
   },
   "author": "chenchuan",
   "license": "ISC",
@@ -50,6 +51,7 @@
     "electron": "^41.1.0",
     "electron-builder": "^26.8.1",
     "electron-rebuild": "^3.2.9",
+    "nodemon": "^3.1.14",
     "patch-package": "^8.0.1"
   },
   "dependencies": {
