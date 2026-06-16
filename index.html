@@ -1008,6 +1008,7 @@
         updateStatus('badReviewStatus', '无标签可检查', true)
         return
       }
+      let totalCheckedShops = 0
       const total = tabIds.length
       let completedCount = 0
       let lastMsg = ''
@@ -1039,6 +1040,7 @@
           if (tab && result) {
             tab.badReviewCount = result.totalBadReviews || 0
             tab.violationCount = (result.violations || []).length
+            totalCheckedShops += (result.totalShopRuns || 0)
             updateTabResult(tab, 'bad', result.details)
             renderTabs()
           }
@@ -1063,9 +1065,10 @@
       if (!document.getElementById('badReviewSwitch').checked) {
         updateStatus('badReviewStatus', '已取消')
       } else {
+        const detailMsg = lastMsg.includes('已检查') ? '暂无异常' : lastMsg;
         updateStatus(
           'badReviewStatus',
-          anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮已检查 ${total} 个标签 · ${lastMsg}`,
+          anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮已检查 ${total} 个标签 (共 ${totalCheckedShops} 个门店实例) · ${detailMsg}`,
           anyError
         )
       }
@@ -1123,6 +1126,8 @@
         updateStatus('goodReviewStatus', '无标签', true)
         return
       }
+      let totalCheckedShops = 0
+      let totalRepliesDone = 0
       const total = tabIds.length
       let completedCount = 0
       let lastMsg = ''
@@ -1153,6 +1158,8 @@
           const tab = tabs.find(t => t.id === tid)
           if (tab && result) {
             tab.goodReplyCount = result.count || 0
+            totalCheckedShops += (result.totalShopRuns || 0)
+            totalRepliesDone += (result.count || 0)
             updateTabResult(tab, 'good', result.details)
             renderTabs()
           }
@@ -1175,11 +1182,11 @@
 
       // 3. 更新最终状态
       if (!document.getElementById('goodReviewSwitch').checked) {
-        updateStatus('goodReviewStatus', 'checked')
+        updateStatus('goodReviewStatus', '已取消')
       } else {
         updateStatus(
           'goodReviewStatus',
-          anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮 ${total} 个标签 · ${lastMsg}`,
+          anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮已检查 ${total} 个标签 (共 ${totalCheckedShops} 个门店实例) · 成功回复好评 ${totalRepliesDone} 条`,
           anyError
         )
       }

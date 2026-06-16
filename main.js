@@ -24,6 +24,7 @@ function createMainWindow() {
     }
   })
 
+  mainWindow.setMaxListeners(50) // 消除多个 BrowserView 添加 closed 监听器产生的超限警告
   mainWindow.loadFile('index.html')
 
   mainWindow.on('closed', () => {
@@ -776,7 +777,8 @@ async function executeReviewTask(tab, mode, runId) {
           : `已检查 ${totalShopRuns} 个门店实例，暂无异常`,
         totalBadReviews: totalBadReviews,
         details: badReviewDetails,
-        violations: violationAlerts
+        violations: violationAlerts,
+        totalShopRuns: totalShopRuns
       };
     } else {
         mainWindow.webContents.send('task-progress-update', {
@@ -788,7 +790,8 @@ async function executeReviewTask(tab, mode, runId) {
         return {
            message: `已检查 ${totalShopRuns} 个门店实例，自动回复完成，共回复 ${totalGoodReplies} 条好评`,
            count: totalGoodReplies,
-           details: goodReplyDetails
+           details: goodReplyDetails,
+           totalShopRuns: totalShopRuns
         };
     }
 
