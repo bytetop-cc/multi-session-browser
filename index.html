@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Multi-Session Browser</title>
+  <title>美团助手</title>
   <style>
     * {
       margin: 0;
@@ -300,6 +300,22 @@
       color: #ea4335;
     }
 
+    .task-action-btn {
+      padding: 4px 8px;
+      font-size: 11px;
+      background: #1a73e8;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .task-action-btn:hover {
+      background: #1557b0;
+    }
+
     /* 开关样式 */
     .switch {
       position: relative;
@@ -452,7 +468,6 @@
       <button class="nav-btn" onclick="goForward()">→</button>
       <button class="nav-btn" onclick="reload()">↻</button>
       <input type="text" class="url-input" id="urlInput" placeholder="输入网址..." onkeydown="onUrlKeydown(event)">
-      <button class="nav-btn" onclick="openDevTools()" title="开发者工具">🔧</button>
       <button class="nav-btn auto-btn" id="autoBtn" onclick="toggleAutoPanel()" title="自动化任务">🤖</button>
       <span class="session-badge" id="sessionBadge">-</span>
     </div>
@@ -497,6 +512,22 @@
           <div id="goodReviewSummaryResult">未开始回复</div>
         </div>
         <div class="auto-task-status" id="goodReviewStatus"></div>
+      </div>
+      <div class="auto-task" style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+          <div class="auto-task-info">
+            <div class="auto-task-name">数据分析</div>
+            <div class="auto-task-desc">每日早上9点自动执行并同步到腾讯智能表格</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="task-action-btn" onclick="runDataAnalysisAll()">立即执行</button>
+            <label class="switch">
+              <input type="checkbox" id="dataAnalysisSwitch" checked onchange="toggleDataAnalysis()">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="auto-task-status" id="dataAnalysisStatus"></div>
       </div>
     </div>
   </div>
@@ -697,10 +728,6 @@
       if (activeTabId) await ipcRenderer.invoke('reload', activeTabId)
     }
 
-    async function openDevTools() {
-      if (activeTabId) await ipcRenderer.invoke('open-devtools', activeTabId)
-    }
-
     async function openSettings() {
       await ipcRenderer.invoke('open-settings')
     }
@@ -855,6 +882,9 @@
         }
         if (document.getElementById('goodReviewSwitch').checked) {
           toggleGoodReviewReply()
+        }
+        if (document.getElementById('dataAnalysisSwitch').checked) {
+          toggleDataAnalysis()
         }
       }, 1500)
     })
@@ -1214,8 +1244,62 @@
     }
 
     function updateAutoBtnState() {
-      const isRunning = badReviewInterval || goodReviewInterval
+      const isRunning = badReviewInterval || goodReviewInterval || dataAnalysisTimeout
       document.getElementById('autoBtn').classList.toggle('running', !!isRunning)
+    }
+
+    let dataAnalysisTimeout = null;
+
+    async function toggleDataAnalysis() {
+      const enabled = document.getElementById('dataAnalysisSwitch').checked
+      if (enabled) {
+        scheduleNextDataAnalysis()
+      } else {
+        if (dataAnalysisTimeout) {
+          clearTimeout(dataAnalysisTimeout)
+          dataAnalysisTimeout = null
+        }
+        updateStatus('dataAnalysisStatus', '已禁用')
+      }
+      updateAutoBtnState()
+    }
+
+    function scheduleNextDataAnalysis() {
+      const enabled = document.getElementById('dataAnalysisSwitch').checked
+      if (!enabled) return
+
+      const now = new Date()
+      let nextNine = new Date()
+      nextNine.setHours(9, 0, 0, 0)
+
+      if (now.getTime() >= nextNine.getTime()) {
+        // 如果今天已经过了9点，安排到明天的9点
+        nextNine.setDate(nextNine.getDate() + 1)
+      }
+
+      const delay = nextNine.getTime() - now.getTime()
+      console.log('[前端] 下次数据分析触发延迟:', delay, 'ms，预计时间:', nextNine.toLocaleString())
+      
+      const hoursStr = nextNine.getHours().toString().padStart(2, '0')
+      const minsStr = nextNine.getMinutes().toString().padStart(2, '0')
+      updateStatus('dataAnalysisStatus', `下次触发: 每天 ${hoursStr}:${minsStr} (剩 ${Math.round(delay / 3600000 * 10) / 10} 小时)`)
+
+      dataAnalysisTimeout = setTimeout(async () => {
+        await runDataAnalysisAll()
+        scheduleNextDataAnalysis() // 递归安排明天
+      }, delay)
+    }
+
+    async function runDataAnalysisAll() {
+      updateStatus('dataAnalysisStatus', '正在分析并同步至腾讯智能表格...')
+      try {
+        const result = await ipcRenderer.invoke('run-data-analysis')
+        console.log('[前端] 数据分析结果:', result)
+        updateStatus('dataAnalysisStatus', result.success ? `✅ 分析成功: ${result.message}` : `❌ 分析失败: ${result.message}`, !result.success)
+      } catch (e) {
+        console.error('[前端] 数据分析异常:', e.message)
+        updateStatus('dataAnalysisStatus', `❌ 执行异常: ${e.message}`, true)
+      }
     }
 
     function updateStatus(elementId, message, isError = false) {

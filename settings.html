@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>设置 - Multi-Session Browser</title>
+  <title>设置 - 美团助手</title>
   <style>
     * {
       margin: 0;
@@ -308,13 +308,82 @@
     </div>
     <div class="list" id="shopList"></div>
 
-    <div class="section-title" style="margin-top: 32px;">消息通知设置</div>
-    <div style="background: #292b2e; padding: 20px; border-radius: 8px;">
+    <div class="section-title" style="margin-top: 32px;">第三方整合设置</div>
+    <div style="background: #292b2e; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 16px;">
       <div class="form-group" style="margin-bottom: 0;">
         <label class="form-label">企微机器人 Webhook 地址</label>
         <div style="display: flex; gap: 12px;">
           <input type="text" class="form-input" id="wecomWebhook" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...">
-          <button class="save-btn" style="white-space: nowrap;" onclick="saveWecomWebhook()">保存地址</button>
+          <button class="save-btn" style="white-space: nowrap;" onclick="saveWecomWebhook()">保存企微</button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label class="form-label">腾讯智能表格（多维表格）Webhook 地址</label>
+        <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+          <input type="text" class="form-input" id="tencentWebhook" placeholder="https://qyapi.weixin.qq.com/cgi-bin/wedoc/smartsheet/webhook?key=..." style="flex: 1;">
+        </div>
+        
+        <label class="form-label" style="margin-top: 12px;">智能表格列字段 ID 映射（请从多维表格的「接收外部数据 - 示例数据」中获取对应的字段ID，已预填默认值）</label>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; background: #202124; padding: 16px; border-radius: 8px; border: 1px solid #333;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px; color: #8ab4f8;">日期 (DateTime) *</span>
+            <input type="text" class="form-input" id="tencentFieldDate" placeholder="f04Gwj" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px; color: #8ab4f8;">门店名称 (Select) *</span>
+            <input type="text" class="form-input" id="tencentFieldShop" placeholder="f85uZN" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px; color: #8ab4f8;">平台 (Select) *</span>
+            <input type="text" class="form-input" id="tencentFieldPlatform" placeholder="fPbfxp" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">曝光人数 (Number)</span>
+            <input type="text" class="form-input" id="tencentFieldExposure" placeholder="ftQMc5" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">访问人数 (Number)</span>
+            <input type="text" class="form-input" id="tencentFieldVisits" placeholder="fRUP1E" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">下单人数 (Number)</span>
+            <input type="text" class="form-input" id="tencentFieldOrders" placeholder="fBCtjw" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">下单金额 (Currency)</span>
+            <input type="text" class="form-input" id="tencentFieldOrderAmount" placeholder="f1VE8Q" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">下单券数 (Number)</span>
+            <input type="text" class="form-input" id="tencentFieldOrderCoupons" placeholder="fKBAl5" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">核销金额 (Currency)</span>
+            <input type="text" class="form-input" id="tencentFieldVerifyAmount" placeholder="fJBh3Y" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">核销券数 (Number)</span>
+            <input type="text" class="form-input" id="tencentFieldVerifyCoupons" placeholder="fGL8gW" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">星级 (Number)</span>
+            <input type="text" class="form-input" id="tencentFieldStar" placeholder="ftk5Tx" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">新增评价数 (Number)</span>
+            <input type="text" class="form-input" id="tencentFieldNewReviews" placeholder="fw252u" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">新增差评数 (Number)</span>
+            <input type="text" class="form-input" id="tencentFieldNewBadReviews" placeholder="fXQZGl" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="form-label" style="font-size: 12px; margin-bottom: 2px;">差评回复率 (Percent)</span>
+            <input type="text" class="form-input" id="tencentFieldBadReplyRate" placeholder="f3Wvet" style="padding: 6px 10px; font-size: 13px;">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+          <button class="save-btn" onclick="saveTencentWebhook()">保存表格设置</button>
         </div>
       </div>
     </div>
@@ -560,10 +629,40 @@
 
     // ========== 全局设置 ==========
 
+    const tencentSettingKeys = [
+      { id: 'tencentFieldDate', key: 'tencent_field_date', def: 'f04Gwj' },
+      { id: 'tencentFieldShop', key: 'tencent_field_shop', def: 'f85uZN' },
+      { id: 'tencentFieldPlatform', key: 'tencent_field_platform', def: 'fPbfxp' },
+      { id: 'tencentFieldExposure', key: 'tencent_field_exposure', def: 'ftQMc5' },
+      { id: 'tencentFieldVisits', key: 'tencent_field_visits', def: 'fRUP1E' },
+      { id: 'tencentFieldOrders', key: 'tencent_field_orders', def: 'fBCtjw' },
+      { id: 'tencentFieldOrderAmount', key: 'tencent_field_order_amount', def: 'f1VE8Q' },
+      { id: 'tencentFieldOrderCoupons', key: 'tencent_field_order_coupons', def: 'fKBAl5' },
+      { id: 'tencentFieldVerifyAmount', key: 'tencent_field_verify_amount', def: 'fJBh3Y' },
+      { id: 'tencentFieldVerifyCoupons', key: 'tencent_field_verify_coupons', def: 'fGL8gW' },
+      { id: 'tencentFieldStar', key: 'tencent_field_star', def: 'ftk5Tx' },
+      { id: 'tencentFieldNewReviews', key: 'tencent_field_new_reviews', def: 'fw252u' },
+      { id: 'tencentFieldNewBadReviews', key: 'tencent_field_new_bad_reviews', def: 'fXQZGl' },
+      { id: 'tencentFieldBadReplyRate', key: 'tencent_field_bad_reply_rate', def: 'f3Wvet' }
+    ]
+
     async function loadGlobalSettings() {
       const webhook = await ipcRenderer.invoke('setting-get', 'wecom_webhook')
       if (webhook) {
         document.getElementById('wecomWebhook').value = webhook
+      }
+      
+      const tencentWebhook = await ipcRenderer.invoke('setting-get', 'tencent_webhook')
+      if (tencentWebhook) {
+        document.getElementById('tencentWebhook').value = tencentWebhook
+      } else {
+        // 预填用户提供的默认多维表格 Webhook
+        document.getElementById('tencentWebhook').value = 'https://qyapi.weixin.qq.com/cgi-bin/wedoc/smartsheet/webhook?key=4NeM9353qRujxlV6Nxixjz3eb5WeOX93Ddwe6XsUNlp6CmcISnCWrUbfRwE5CqOrhTblbh8zGsK5XdCYqnucG2YLcPnlsOAbqkegPzrXe8OX'
+      }
+
+      for (const item of tencentSettingKeys) {
+        const val = await ipcRenderer.invoke('setting-get', item.key)
+        document.getElementById(item.id).value = (val !== null && val !== undefined) ? val : item.def
       }
     }
 
@@ -571,6 +670,18 @@
       const val = document.getElementById('wecomWebhook').value.trim()
       await ipcRenderer.invoke('setting-set', { key: 'wecom_webhook', value: val })
       alert('保存成功！差评预警现在会推送到这个企微群。')
+    }
+
+    async function saveTencentWebhook() {
+      const urlVal = document.getElementById('tencentWebhook').value.trim()
+      await ipcRenderer.invoke('setting-set', { key: 'tencent_webhook', value: urlVal })
+
+      for (const item of tencentSettingKeys) {
+        const fieldVal = document.getElementById(item.id).value.trim()
+        await ipcRenderer.invoke('setting-set', { key: item.key, value: fieldVal })
+      }
+
+      alert('保存成功！昨日核心客流、交易与评价数据现在会自动写入该多维表格。')
     }
 
     // ========== 通用 ==========

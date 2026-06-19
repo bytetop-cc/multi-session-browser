@@ -1,5 +1,10 @@
-const { app, BrowserWindow, BrowserView, ipcMain, session, Notification } = require('electron')
+const { app } = require('electron')
 const path = require('path')
+
+// 强制指定 userData 目录为 multi-session-browser，确保数据库和 Session 数据不会因为重命名而发生变化
+app.setPath('userData', path.join(app.getPath('appData'), 'multi-session-browser'))
+
+const { BrowserWindow, BrowserView, ipcMain, session, Notification } = require('electron')
 const { initDatabase, shopService, templateService, settingService } = require('./db')
 const { AutoHelper } = require('./auto-helper')
 const { readReviewFilterDebug } = require('./iframe-bridge')
@@ -18,6 +23,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    icon: path.join(__dirname, 'build/icon.png'),
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
@@ -244,6 +250,7 @@ ipcMain.handle('open-settings', () => {
   settingsWindow = new BrowserWindow({
     width: 880,
     height: 640,
+    icon: path.join(__dirname, 'build/icon.png'),
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
@@ -601,9 +608,11 @@ async function executeReviewTask(tab, mode, runId) {
 
           const replyResult = await tab.view.webContents.executeJavaScript(`
             (async function() {
-              const replies = JSON.parse(atob("${repliesBase64}"));
-              const templates = JSON.parse(atob("${templatesBase64}"));
+              const decodeUtf8Base64 = str => decodeURIComponent(escape(atob(str)));
+              const replies = JSON.parse(decodeUtf8Base64("${repliesBase64}"));
+              const templates = JSON.parse(decodeUtf8Base64("${templatesBase64}"));
               let successCount = 0;
+              let debugLogs = [];
               
               function getRandomTemplate() {
                 const t = templates[Math.floor(Math.random() * templates.length)];
@@ -613,41 +622,67 @@ async function executeReviewTask(tab, mode, runId) {
               const sleep = ms => new Promise(r => setTimeout(r, ms));
               
               for (const detail of replies) {
+                const reviewInfo = detail.reviewDetail && detail.reviewDetail.reviewInfo;
+                const reviewId = reviewInfo ? reviewInfo.reviewId : null;
+                if (!reviewId) continue;
+                
+                const content = getRandomTemplate();
+                const targetUrl = window.location.origin + '/review/app/reply/ajax/reviewreply';
+                
+                // platform 映射：查询列表时的 platformVal = 1 (点评) / 2 (美团)
+                // 对应回复 API 的 platform 值为 0 (点评) / 1 (美团)
+                const replyPlatform = ${platformVal} === 1 ? 0 : 1;
+                const userId = (reviewInfo && reviewInfo.userId) || (detail.userInfo && detail.userInfo.userId) || 0;
+                
+                let resText = "";
+                let resStatus = null;
                 try {
-                  const reviewInfo = detail.reviewDetail && detail.reviewDetail.reviewInfo;
-                  const reviewId = reviewInfo ? reviewInfo.reviewId : null;
-                  
-                  if (!reviewId) continue;
-                  
-                  const content = getRandomTemplate();
-                  
-                  const res = await fetch('https://e.dianping.com/review/app/reply/ajax/reviewreply', {
+                  const res = await fetch(targetUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Requested-With': 'XMLHttpRequest'
+                    },
                     body: JSON.stringify({
                       clientType: 1,
-                      platform: ${platformVal},
+                      platform: replyPlatform,
                       content: content,
                       replyId: 0,
                       shopIdStr: String(${shopId}),
-                      reviewId: reviewId
+                      reviewId: reviewId,
+                      userId: userId
                     })
                   });
                   
-                  const resData = await res.json();
-                  console.log('[API好评回复] 回复结果:', resData);
-                  if (resData && (resData.code === 200 || resData.success === true)) {
+                  resStatus = res.status;
+                  const buffer = await res.arrayBuffer();
+                  resText = new TextDecoder('utf-8').decode(buffer);
+                  const data = JSON.parse(resText);
+                  if (data && (data.code === 200 || data.success === true)) {
                     successCount++;
+                    debugLogs.push({ reviewId, success: true, status: resStatus, text: resText });
+                  } else {
+                    debugLogs.push({ reviewId, success: false, status: resStatus, text: resText });
                   }
-                  
-                  await sleep(3000); // 每次回复之间延迟 3 秒防频率限制
                 } catch (e) {
-                  console.error('[API好评回复] 发生异常:', e.message);
+                  debugLogs.push({ reviewId, success: false, status: resStatus, error: e.message, text: resText });
                 }
+                await sleep(3000);
               }
-              return { count: successCount };
+              return { count: successCount, debugLogs };
             })()
-          `).catch(e => { console.log('好评自动回复异常:', e.message); return { count: 0 }; });
+          `).catch(e => { console.log('好评自动回复异常:', e.message); return { count: 0, error: e.message }; });
+
+          console.log(`[好评自动回复] 门店 [${displayName}] (${platformName}) API 回复结果:`, JSON.stringify(replyResult));
+          if (replyResult && replyResult.debugLogs) {
+            for (const log of replyResult.debugLogs) {
+              if (log.success) {
+                console.log(`[好评自动回复] [成功] 评价ID: ${log.reviewId}, 响应: ${log.text}`);
+              } else {
+                console.error(`[好评自动回复] [失败] 评价ID: ${log.reviewId}, HTTP状态: ${log.status}, 响应: ${log.text}, 错误: ${log.error || '无'}`);
+              }
+            }
+          }
 
           if (replyResult && replyResult.count > 0) {
             totalGoodReplies += replyResult.count;
@@ -818,5 +853,341 @@ ipcMain.handle('run-good-review-reply', async (event, payload) => {
   const tabId = typeof payload === 'string' ? payload : payload?.tabId;
   const runId = payload?.runId;
   return await executeReviewTask(tabs.get(tabId), 'good', runId);
+});
+
+// 数据分析并写入腾讯智能表格的任务
+async function executeDataAnalysis(tab) {
+  if (!tab) {
+    return { success: false, message: '未找到可用标签页，请打开点评商户后台' };
+  }
+
+  const shops = shopService.getAll();
+  if (shops.length === 0) {
+    return { success: false, message: '请先在设置中添加门店' };
+  }
+
+  // 1. 获取点评后台的所有门店列表以进行匹配
+  let apiShopList = [];
+  try {
+    apiShopList = await tab.view.webContents.executeJavaScript(`
+      (async function() {
+        try {
+          const res = await fetch('/gateway/merchant/general/shopinfo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bizType: "review_manage_checkbox",
+              device: "pc",
+              currentTab: "city",
+              shopIds: "0"
+            })
+          });
+          const data = await res.json();
+          if (data && data.code === 200 && data.data) {
+            return data.data.shopInfoList || [];
+          }
+        } catch (e) {
+          console.error('[数据分析] 获取门店列表异常:', e.message);
+        }
+        return [];
+      })()
+    `);
+  } catch (e) {
+    console.error('[数据分析] executeJavaScript 获取门店列表失败:', e.message);
+    return { success: false, message: '无法获取商户门店列表，请确保已登录' };
+  }
+
+  if (!apiShopList || apiShopList.length === 0) {
+    return { success: false, message: '获取点评商户门店列表为空，请先登录' };
+  }
+
+  // 辅助匹配函数
+  function normalizeShopName(name) {
+    if (!name) return '';
+    return name.replace(/[\s\(\)（）]/g, '').toLowerCase();
+  }
+  function isShopMatched(cfgName, apiShop) {
+    const shopName = apiShop.shopName || '';
+    const branchName = apiShop.branchName || '';
+    const combined = branchName ? `${shopName}（${branchName}）` : shopName;
+    const normCfg = normalizeShopName(cfgName);
+    const normCombined = normalizeShopName(combined);
+    return normCfg === normCombined || normCombined.includes(normCfg) || normCfg.includes(normCombined);
+  }
+
+  // 匹配门店
+  const matchedShops = [];
+  for (const cfgShop of shops) {
+    const matchedApiShop = apiShopList.find(apiShop => isShopMatched(cfgShop.name, apiShop));
+    if (matchedApiShop) {
+      matchedShops.push({ cfg: cfgShop, api: matchedApiShop });
+    }
+  }
+
+  if (matchedShops.length === 0) {
+    return { success: false, message: '未匹配到任何点评后台门店，请检查门店名称设置' };
+  }
+
+  // 获取多维表格 Webhook 配置及列 ID 映射
+  const tencentWebhook = settingService.get('tencent_webhook');
+  const fieldIdDate = settingService.get('tencent_field_date') || 'f04Gwj';
+  const fieldIdShop = settingService.get('tencent_field_shop') || 'f85uZN';
+  const fieldIdPlatform = settingService.get('tencent_field_platform') || 'fPbfxp';
+  const fieldIdExposure = settingService.get('tencent_field_exposure') || 'ftQMc5';
+  const fieldIdVisits = settingService.get('tencent_field_visits') || 'fRUP1E';
+  const fieldIdOrders = settingService.get('tencent_field_orders') || 'fBCtjw';
+  const fieldIdOrderAmount = settingService.get('tencent_field_order_amount') || 'f1VE8Q';
+  const fieldIdOrderCoupons = settingService.get('tencent_field_order_coupons') || 'fKBAl5';
+  const fieldIdVerifyAmount = settingService.get('tencent_field_verify_amount') || 'fJBh3Y';
+  const fieldIdVerifyCoupons = settingService.get('tencent_field_verify_coupons') || 'fGL8gW';
+  const fieldIdStar = settingService.get('tencent_field_star') || 'ftk5Tx';
+  const fieldIdNewReviews = settingService.get('tencent_field_new_reviews') || 'fw252u';
+  const fieldIdNewBadReviews = settingService.get('tencent_field_new_bad_reviews') || 'fXQZGl';
+  const fieldIdBadReplyRate = settingService.get('tencent_field_bad_reply_rate') || 'f3Wvet';
+
+  // 计算昨天日期 (格式为 YYYY-MM-DD)
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const year = yesterday.getFullYear();
+  const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const day = String(yesterday.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
+  const dateParam = `${dateStr},${dateStr}`;
+  
+  // 以昨天开始时分秒为基准，转换为毫秒时间戳字符串，用于多维表格日期类型写入
+  const yesterdayStart = new Date(yesterday.setHours(0, 0, 0, 0));
+  const dateTimestampStr = String(yesterdayStart.getTime());
+
+  let successCount = 0;
+  let detailMessages = [];
+  let errorMessages = [];
+
+  for (const item of matchedShops) {
+    const shopId = item.api.shopId;
+    const displayName = `${item.api.shopName}${item.api.branchName ? '(' + item.api.branchName + ')' : ''}`;
+
+    for (const platformVal of [1, 2]) {
+      const platformName = platformVal === 1 ? '点评' : '美团';
+      
+      // 延迟 2s 防频控
+      await new Promise(r => setTimeout(r, 2000));
+
+      mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode: 'analysis', text: `📡 [${item.api.shopName}] 拉取${platformName}昨日经营数据...` });
+      console.log(`[数据分析] 正在拉取门店 [${displayName}] 平台: ${platformName} (shopId: ${shopId})`);
+
+      const requestBody = `source=1&device=pc&date=${encodeURIComponent(dateParam)}&platform=${platformVal}&pageType=v5Home&optionType=v5Home&shopIds=${shopId}`;
+
+      let mdaData = null;
+      try {
+        mdaData = await tab.view.webContents.executeJavaScript(`
+          (async function() {
+            try {
+              const res = await fetch('/mda/v5/overview', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: '${requestBody}'
+              });
+              const json = await res.json();
+              if (json && json.success) {
+                return json.data;
+              }
+            } catch (e) {
+              console.error('[数据分析 API] 错误:', e.message);
+            }
+            return null;
+          })()
+        `);
+      } catch (e) {
+        console.error(`[数据分析] 调用 ${displayName} (${platformName}) overview 接口失败:`, e.message);
+      }
+
+      if (!mdaData) {
+        console.log(`[数据分析] [${displayName}] [${platformName}] 接口返回空数据或调用失败，跳过`);
+        continue;
+      }
+
+      // 解析各项组件指标
+      let exposure = 0;
+      let visits = 0;
+      let orders = 0;
+      let verifyUv = 0;
+      let orderCoupons = 0;
+      let orderAmount = 0;
+      let verifyAmount = 0;
+      let verifyCoupons = 0;
+      let star = 0;
+      let newReviews = 0;
+      let newBadReviews = 0;
+      let badReplyRate = 0;
+
+      for (const component of mdaData) {
+        const body = component.body;
+        if (!body) continue;
+
+        // 1. 客流分析 (trafficSummaryLineTrade)
+        if (component.componentId === 'trafficSummaryLineTrade' && Array.isArray(body)) {
+          for (const it of body) {
+            const val = parseFloat(String(it.value).replace(/,/g, '')) || 0;
+            if (it.variable === 'view_uv') exposure = val;
+            if (it.variable === 'shop_uv') visits = val;
+            if (it.variable === 'buy_uv') orders = val;
+            if (it.variable === 'csm_uv') verifyUv = val;
+          }
+        }
+
+        // 2. 下单分析 (salesTabGraph)
+        if (component.componentId === 'salesTabGraph' && Array.isArray(body)) {
+          for (const it of body) {
+            const val = parseFloat(String(it.value).replace(/,/g, '')) || 0;
+            if (it.variable === 'ind_buy_cnt') orderCoupons = val;
+            if (it.variable === 'ind_buy_amt') orderAmount = val;
+          }
+        }
+
+        // 3. 核销分析 (tradeTabGraph)
+        if (component.componentId === 'tradeTabGraph' && Array.isArray(body)) {
+          for (const it of body) {
+            const val = parseFloat(String(it.value).replace(/,/g, '')) || 0;
+            if (it.variable === 'csm_amt') verifyAmount = val;
+            if (it.variable === 'csm_cnt') verifyCoupons = val;
+          }
+        }
+
+        // 4. 评价分析 (reviewSummaryPC)
+        if (component.componentId === 'reviewSummaryPC' && Array.isArray(body)) {
+          for (const it of body) {
+            const valStr = String(it.value);
+            let val = 0;
+            if (valStr.includes('%')) {
+              val = parseFloat(valStr) / 100;
+            } else {
+              val = parseFloat(valStr.replace(/,/g, '')) || 0;
+            }
+            
+            if (it.variable === 'review_new_cnt') newReviews = val;
+            if (it.variable === 'bad_review_new_cnt') newBadReviews = val;
+            if (it.variable === 'bad_review_reply_rate') {
+              if (valStr === '--') {
+                badReplyRate = 0;
+              } else {
+                badReplyRate = val;
+              }
+            }
+          }
+        }
+
+        // 5. 星级分析 (starSummaryPC)
+        if (component.componentId === 'starSummaryPC' && Array.isArray(body)) {
+          for (const it of body) {
+            const val = parseFloat(String(it.value).replace(/[^\d.]/g, '')) || 0;
+            star = val;
+          }
+        }
+      }
+
+      // 组装多维表格 values
+      const values = {};
+      if (fieldIdDate) values[fieldIdDate] = dateTimestampStr;
+      if (fieldIdShop) values[fieldIdShop] = [{ "text": displayName }];
+      if (fieldIdPlatform) values[fieldIdPlatform] = [{ "text": platformName }];
+      if (fieldIdExposure) values[fieldIdExposure] = exposure;
+      if (fieldIdVisits) values[fieldIdVisits] = visits;
+      if (fieldIdOrders) values[fieldIdOrders] = orders;
+      if (fieldIdOrderAmount) values[fieldIdOrderAmount] = orderAmount;
+      if (fieldIdOrderCoupons) values[fieldIdOrderCoupons] = orderCoupons;
+      if (fieldIdVerifyAmount) values[fieldIdVerifyAmount] = verifyAmount;
+      if (fieldIdVerifyCoupons) values[fieldIdVerifyCoupons] = verifyCoupons;
+      if (fieldIdStar) values[fieldIdStar] = star;
+      if (fieldIdNewReviews) values[fieldIdNewReviews] = newReviews;
+      if (fieldIdNewBadReviews) values[fieldIdNewBadReviews] = newBadReviews;
+      if (fieldIdBadReplyRate) values[fieldIdBadReplyRate] = badReplyRate;
+
+      const payloadBody = {
+        "add_records": [
+          {
+            "values": values
+          }
+        ]
+      };
+
+      console.log(`[数据分析] 准备上报多维表格数据 (${platformName}):`, JSON.stringify(payloadBody));
+
+      if (tencentWebhook) {
+        try {
+          const sendWebhookPromise = new Promise((resolve, reject) => {
+            const { net } = require('electron');
+            const request = net.request({
+              method: 'POST',
+              url: tencentWebhook,
+              headers: {
+                'Content-Type': 'application/json; charset=utf-8'
+              }
+            });
+            
+            request.on('response', (response) => {
+              let chunks = [];
+              response.on('data', (chunk) => {
+                chunks.push(chunk);
+              });
+              response.on('end', () => {
+                const bodyStr = Buffer.concat(chunks).toString('utf-8');
+                try {
+                  const resData = JSON.parse(bodyStr);
+                  if (resData.errcode === 0) {
+                    resolve(resData);
+                  } else {
+                    reject(new Error(`企微错误: ${resData.errmsg} (code: ${resData.errcode})`));
+                  }
+                } catch (e) {
+                  reject(new Error(`解析响应 JSON 失败: ${bodyStr}`));
+                }
+              });
+            });
+            
+            request.on('error', (err) => {
+              reject(err);
+            });
+            
+            request.write(JSON.stringify(payloadBody));
+            request.end();
+          });
+          
+          await sendWebhookPromise;
+          successCount++;
+          console.log(`[数据分析] [${displayName}] [${platformName}] 腾讯多维表格数据写入成功`);
+        } catch (webhookErr) {
+          console.error(`[数据分析] [${displayName}] [${platformName}] 腾讯 Webhook 发送失败:`, webhookErr.message);
+          errorMessages.push(`[${displayName} - ${platformName}] 同步失败: ${webhookErr.message}`);
+        }
+      } else {
+        successCount++;
+      }
+    }
+    detailMessages.push(displayName);
+  }
+
+  let finalMsg = `已成功抓取并分析 ${matchedShops.length} 个门店昨日的经营客流与评价数据`;
+  if (tencentWebhook) {
+    if (errorMessages.length > 0) {
+      finalMsg += `，部分同步失败，错误: ${errorMessages.join('; ')}`;
+    } else {
+      finalMsg += `，并自动同步至腾讯智能多维表格。`;
+    }
+  } else {
+    finalMsg += `，但未配置腾讯智能表格 Webhook，已在主进程日志打印数据详情。`;
+  }
+
+  return {
+    success: errorMessages.length === 0,
+    message: finalMsg
+  };
+}
+
+// 数据分析任务
+ipcMain.handle('run-data-analysis', async () => {
+  const activeTab = [...tabs.values()].find(t => t.active) || [...tabs.values()][0];
+  return await executeDataAnalysis(activeTab);
 });
 

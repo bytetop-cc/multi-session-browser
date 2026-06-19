@@ -1,5 +1,5 @@
 const Database = require('better-sqlite3')
-const path = require('path')
+const path = require('path') // db path definition
 const { app } = require('electron')
 
 // 数据库存放在用户数据目录
@@ -60,6 +60,12 @@ function initDatabase() {
 
   migrateTemplatesShopId()
   purgeTemplatesWithoutShop()
+  
+  // 临时设置 wecom_webhook 地址
+  db.prepare(`
+    INSERT OR REPLACE INTO settings (key, value)
+    VALUES ('wecom_webhook', 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=f5dbd97e-eb01-406a-932e-b914b0f2f78a')
+  `).run()
 }
 
 function migrateTemplatesShopId() {

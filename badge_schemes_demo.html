@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>状态标签 (已开启报名) 优化方案与交互式代码生成器</title>
+    <!-- 引入 Outfit 与 Inter 字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #08090c;
+            --panel-bg: rgba(18, 20, 26, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-color: #ff3b30;
+            --accent-glow: rgba(255, 59, 48, 0.5);
+            --text-main: #f5f5f7;
+            --text-muted: #86868b;
+            --success-color: #30d158;
+            --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            padding: 60px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(255, 59, 48, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(48, 209, 88, 0.05) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .header {
+            text-align: center;
+            max-width: 800px;
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            font-family: var(--font-display);
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ffffff 30%, #86868b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            font-size: 16px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* 选项布局网格 */
+        .schemes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .schemes-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .scheme-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 24px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .scheme-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .scheme-title {
+            font-family: var(--font-display);
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .recommend-tag {
+            background: linear-gradient(135deg, #ff3b30, #ff9f0a);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .scheme-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        /* 模拟 Banner 卡片展示框 */
+        .preview-box {
+            position: relative;
+            width: 100%;
+            height: 160px;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            padding: 16px;
+            background-color: #12141a;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            margin-bottom: 20px;
+        }
+
+        /* 背景图模拟 */
+        .preview-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-size: cover;
+            background-position: center;
+            filter: brightness(0.6) contrast(1.1);
+            transition: filter 0.3s;
+            z-index: 1;
+        }
+
+        .preview-box:hover .preview-bg {
+            filter: brightness(0.7) contrast(1.1);
+        }
+
+        /* 横幅上的文字 */
+        .banner-title {
+            position: relative;
+            z-index: 2;
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: 0.5px;
+        }
+
+        /* 徽章统一定位 */
+        .badge-wrapper {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 3;
+        }
+
+        /* --- 方案样式定义 --- */
+
+        /* 方案 1: 微光毛玻璃呼吸红点 */
+        .badge-glass-pulse {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .badge-glass-pulse .dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 0 8px var(--accent-color);
+        }
+
+        .badge-glass-pulse .dot::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-glow);
+            animation: pulse-glow 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(0.6); opacity: 1; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+
+        /* 方案 2: 温和去红点·柔和微红渐变 */
+        .badge-soft-glow {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 12px;
+            background: linear-gradient(135deg, rgba(255, 59, 48, 0.22) 0%, rgba(255, 59, 48, 0.04) 100%);
+            border: 1px solid rgba(255, 59, 48, 0.35);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 20px;
+            color: #ff453a;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 10px rgba(255, 59, 48, 0.1);
+        }
+
+        /* 方案 3: 进行中清新绿点 */
+        .badge-green-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 6px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-green-status .dot {
+            width: 5px;
+            height: 5px;
+            background-color: var(--success-color);
+            border-radius: 50%;
+            box-shadow: 0 0 6px var(--success-color);
+            animation: breathe 2s infinite ease-in-out;
+        }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 0.4; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        /* 方案 4: 极简悬浮线条风 */
+        .badge-outline-only {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 400;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+        }
+
+        .badge-outline-only .dot {
+            width: 6px;
+            height: 6px;
+            background-color: #ff3b30;
+            border-radius: 50%;
+            box-shadow: 0 0 6px rgba(255, 59, 48, 0.8);
+        }
+
+
+        /* 代码面板 */
+        .code-container {
+            position: relative;
+            margin-top: auto;
+        }
+
+        .code-block {
+            background: #0d0e12;
+            border-radius: 8px;
+            padding: 14px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11.5px;
+            color: #a9b1d6;
+            overflow-x: auto;
+            white-space: pre;
+            border: 1px solid rgba(255,255,255,0.03);
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+
+        .copy-btn.copied {
+            background: rgba(48, 209, 88, 0.2);
+            border-color: rgba(48, 209, 88, 0.4);
+            color: var(--success-color);
+        }
+
+        /* 顶部小徽章切换背景图按钮组 */
+        .controls-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .control-btn {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn.active {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>状态标签视觉重构方案</h1>
+        <p>为您的 Banner 右上角“已开启报名”标签量身定做的 4 种高级、现代的前端实现方案。去除了生硬突兀的原始红点，加入了微光、磨砂毛玻璃以及呼吸灯动画。</p>
+    </div>
+
+    <!-- 背景切换控制器 -->
+    <div class="controls-bar">
+        <span style="font-size: 13px; color: var(--text-muted); align-self: center;">切换 Banner 背景：</span>
+        <button class="control-btn active" onclick="changeBg(1)">极简人像 Banner</button>
+        <button class="control-btn" onclick="changeBg(2)">时尚摄影 Banner</button>
+        <button class="control-btn" onclick="changeBg(3)">暗色纹理 Banner</button>
+    </div>
+
+    <div class="schemes-grid">
+        <!-- 方案 1 -->
+        <div class="scheme-card">
+            <div class="scheme-title">
+                方案 1：微光毛玻璃 + 呼吸灯
+                <span class="recommend-tag">最推荐</span>
+            </div>
+            <div class="scheme-desc">
+                iOS 玻璃态风格。通过毛玻璃融入背景，红点设计了动态扩散圈（呼吸灯），既起到提示作用又非常高级精致。
+            </div>
+            <div class="preview-box">
+                <div class="preview-bg" id="bg-1" style="background-image: url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80');"></div>
+                <span class="banner-title">哇哦摄影工作室</span>
+                <div class="badge-wrapper">
+                    <div class="badge-glass-pulse">
+                        <span class="dot"></span>
+                        <span>已开启报名</span>
+                    </div>
+                </div>
+            </div>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'code-1')">复制代码</button>
+                <div class="code-block" id="code-1">&lt;!-- HTML --&gt;
+&lt;div class="badge-glass-pulse"&gt;
+  &lt;span class="dot"&gt;&lt;/span&gt;
+  &lt;span&gt;已开启报名&lt;/span&gt;
+&lt;/div&gt;
+
+&lt;!-- CSS --&gt;
+.badge-glass-pulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+.badge-glass-pulse .dot {
+  width: 6px;
+  height: 6px;
+  background-color: #ff3b30;
+  border-radius: 50%;
+  position: relative;
+  box-shadow: 0 0 8px #ff3b30;
+}
+.badge-glass-pulse .dot::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 59, 48, 0.4);
+  animation: pulse-glow 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+@keyframes pulse-glow {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}</div>
+            </div>
+        </div>
+
+        <!-- 方案 2 -->
+        <div class="scheme-card">
+            <div class="scheme-title">方案 2：去红点 · 柔和红光渐变</div>
+            <div class="scheme-desc">
+                完全舍弃突兀的红色圆点，将红色温和地融入背景的半透明渐变之中，极富艺术设计感。
+            </div>
+            <div class="preview-box">
+                <div class="preview-bg" id="bg-2" style="background-image: url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80');"></div>
+                <span class="banner-title">哇哦摄影工作室</span>
+                <div class="badge-wrapper">
+                    <div class="badge-soft-glow">
+                        <span>已开启报名</span>
+                    </div>
+                </div>
+            </div>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'code-2')">复制代码</button>
+                <div class="code-block" id="code-2">&lt;!-- HTML --&gt;
+&lt;div class="badge-soft-glow"&gt;
+  &lt;span&gt;已开启报名&lt;/span&gt;
+&lt;/div&gt;
+
+&lt;!-- CSS --&gt;
+.badge-soft-glow {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  background: linear-gradient(135deg, rgba(255, 59, 48, 0.22) 0%, rgba(255, 59, 48, 0.04) 100%);
+  border: 1px solid rgba(255, 59, 48, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 20px;
+  color: #ff453a;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}</div>
+            </div>
+        </div>
+
+        <!-- 方案 3 -->
+        <div class="scheme-card">
+            <div class="scheme-title">方案 3：进行中 · 护眼青绿点</div>
+            <div class="scheme-desc">
+                绿色在UI中常用于表示“活跃/开启”。相比红点的刺眼，柔和呼吸绿点显得更加温润协调。
+            </div>
+            <div class="preview-box">
+                <div class="preview-bg" id="bg-3" style="background-image: url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80');"></div>
+                <span class="banner-title">哇哦摄影工作室</span>
+                <div class="badge-wrapper">
+                    <div class="badge-green-status">
+                        <span class="dot"></span>
+                        <span>已开启报名</span>
+                    </div>
+                </div>
+            </div>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'code-3')">复制代码</button>
+                <div class="code-block" id="code-3">&lt;!-- HTML --&gt;
+&lt;div class="badge-green-status"&gt;
+  &lt;span class="dot"&gt;&lt;/span&gt;
+  &lt;span&gt;已开启报名&lt;/span&gt;
+&lt;/div&gt;
+
+&lt;!-- CSS --&gt;
+.badge-green-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11px;
+  font-weight: 500;
+}
+.badge-green-status .dot {
+  width: 5px;
+  height: 5px;
+  background-color: #30d158;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #30d158;
+  animation: breathe 2s infinite ease-in-out;
+}
+@keyframes breathe {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}</div>
+            </div>
+        </div>
+
+        <!-- 方案 4 -->
+        <div class="scheme-card">
+            <div class="scheme-title">方案 4：磨砂极简线框</div>
+            <div class="scheme-desc">
+                不使用沉重的黑色背景，而是利用轻量的白色线框与软色阴影托出徽章，最大程度保留下方 Banner 的细节。
+            </div>
+            <div class="preview-box">
+                <div class="preview-bg" id="bg-4" style="background-image: url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80');"></div>
+                <span class="banner-title">哇哦摄影工作室</span>
+                <div class="badge-wrapper">
+                    <div class="badge-outline-only">
+                        <span class="dot"></span>
+                        <span>已开启报名</span>
+                    </div>
+                </div>
+            </div>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this, 'code-4')">复制代码</button>
+                <div class="code-block" id="code-4">&lt;!-- HTML --&gt;
+&lt;div class="badge-outline-only"&gt;
+  &lt;span class="dot"&gt;&lt;/span&gt;
+  &lt;span&gt;已开启报名&lt;/span&gt;
+&lt;/div&gt;
+
+&lt;!-- CSS --&gt;
+.badge-outline-only {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 400;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.badge-outline-only .dot {
+  width: 6px;
+  height: 6px;
+  background-color: #ff3b30;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(255, 59, 48, 0.8);
+}</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 背景图列表
+        const bgImages = [
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80', // 肖像
+            'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=600&q=80', // 摄影棚/相机
+            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300" viewBox="0 0 600 300"><rect width="600" height="300" fill="%231a1d24"/><path d="M0 100 Q 150 150, 300 100 T 600 100" fill="none" stroke="%23303643" stroke-width="2"/><path d="M0 200 Q 150 250, 300 200 T 600 200" fill="none" stroke="%23303643" stroke-width="2"/></svg>' // 暗底几何
+        ];
+
+        function changeBg(index) {
+            // 更新按钮状态
+            const buttons = document.querySelectorAll('.control-btn');
+            buttons.forEach((btn, idx) => {
+                if (idx === index - 1) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // 更新背景图
+            const bgUrl = bgImages[index - 1];
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`bg-${i}`).style.backgroundImage = `url('${bgUrl}')`;
+            }
+        }
+
+        // 复制代码逻辑
+        function copyCode(btn, codeId) {
+            const codeText = document.getElementById(codeId).innerText;
+            navigator.clipboard.writeText(codeText).then(() => {
+                btn.innerText = "已复制 ✓";
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerText = "复制代码";
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error("复制失败: ", err);
+                alert("复制失败，请手动选择复制！");
+            });
+        }
+    </script>
+</body>
+</html>
