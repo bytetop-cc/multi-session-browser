@@ -308,6 +308,12 @@
     </div>
     <div class="list" id="shopList"></div>
 
+    <div class="section-title" style="margin-top: 32px;">数据备份与恢复</div>
+    <div style="background: #292b2e; padding: 20px; border-radius: 8px; display: flex; gap: 16px;">
+      <button class="add-btn" onclick="exportDatabase()">导出所有数据</button>
+      <button class="add-btn" style="background: #c5221f;" onclick="importDatabase()">导入数据 (覆盖现有)</button>
+    </div>
+
     <div class="section-title" style="margin-top: 32px;">第三方整合设置</div>
     <div style="background: #292b2e; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; gap: 16px;">
       <div class="form-group" style="margin-bottom: 0;">
@@ -685,6 +691,27 @@
     }
 
     // ========== 通用 ==========
+
+    async function exportDatabase() {
+      const result = await ipcRenderer.invoke('export-database')
+      if (result.success) {
+        alert('导出成功！\\n文件已保存至: ' + result.path)
+      } else if (!result.canceled) {
+        alert('导出失败: ' + result.error)
+      }
+    }
+
+    async function importDatabase() {
+      if (!confirm('警告：导入数据将完全覆盖现有的所有配置和数据！\\n强烈建议在导入前先【导出所有数据】备份。\\n\\n确定要继续导入吗？')) {
+        return
+      }
+      const result = await ipcRenderer.invoke('import-database')
+      if (result.success) {
+        alert('导入成功！软件即将重启以应用新数据。')
+      } else if (!result.canceled) {
+        alert('导入失败: ' + result.error)
+      }
+    }
 
     function escapeHtml(text) {
       const div = document.createElement('div')
