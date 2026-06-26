@@ -1263,6 +1263,8 @@
 
       // 每 1 分钟检查一次系统时间
       dataAnalysisInterval = setInterval(async () => {
+        if (isDataAnalysisRunning) return // 正在运行时跳过检查和状态覆盖
+
         const now = new Date().getTime()
         if (dataAnalysisNextRunTime && now >= dataAnalysisNextRunTime) {
           // 时间到了，执行任务
@@ -1299,7 +1301,11 @@
       console.log('[前端] 数据分析已规划在:', nextNine.toLocaleString())
     }
 
+    let isDataAnalysisRunning = false;
+
     async function runDataAnalysisAll() {
+      if (isDataAnalysisRunning) return;
+      isDataAnalysisRunning = true;
       updateStatus('dataAnalysisStatus', '正在分析并同步至腾讯智能表格...')
       try {
         const result = await ipcRenderer.invoke('run-data-analysis')
@@ -1308,6 +1314,8 @@
       } catch (e) {
         console.error('[前端] 数据分析异常:', e.message)
         updateStatus('dataAnalysisStatus', `❌ 执行异常: ${e.message}`, true)
+      } finally {
+        isDataAnalysisRunning = false;
       }
     }
 
