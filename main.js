@@ -5,7 +5,7 @@ const path = require('path')
 app.setPath('userData', path.join(app.getPath('appData'), 'multi-session-browser'))
 
 const { BrowserWindow, BrowserView, ipcMain, session, Notification } = require('electron')
-const { initDatabase, shopService, templateService, settingService } = require('./db')
+const { initDatabase, shopService, templateService, settingService, db } = require('./db')
 const { AutoHelper } = require('./auto-helper')
 const { readReviewFilterDebug } = require('./iframe-bridge')
 
@@ -321,6 +321,78 @@ ipcMain.handle('shop-template-delete', (event, id) => {
   return templateService.delete(id)
 })
 
+// ========== 数据备份与恢复 ==========
+
+const fs = require('fs')
+const { dialog } = require('electron')
+
+ipcMain.handle('export-database', async (event) => {
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: '导出数据',
+      defaultPath: `meituan-helper-backup-${new Date().toISOString().slice(0,10)}.db`,
+      filters: [{ name: 'Database', extensions: ['db'] }]
+    })
+
+    if (canceled || !filePath) {
+      return { canceled: true }
+    }
+
+    // 执行一次 checkpoint 确保内存/WAL的数据写回到主文件
+    db.pragma('wal_checkpoint(TRUNCATE)')
+    
+    // 拷贝文件
+    const sourcePath = path.join(app.getPath('userData'), 'app-data.db')
+    fs.copyFileSync(sourcePath, filePath)
+
+    return { success: true, path: filePath }
+  } catch (error) {
+    console.error('Export DB Error:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('import-database', async (event) => {
+  try {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: '导入数据',
+      properties: ['openFile'],
+      filters: [{ name: 'Database', extensions: ['db'] }]
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return { canceled: true }
+    }
+
+    const sourcePath = filePaths[0]
+    const targetPath = path.join(app.getPath('userData'), 'app-data.db')
+
+    // 导入需要替换现有数据库
+    // 最好关闭当前数据库连接，拷贝文件，然后重启应用
+    db.close()
+    
+    // 删除旧的 wal 和 shm 文件以防冲突
+    const walPath = targetPath + '-wal'
+    const shmPath = targetPath + '-shm'
+    if (fs.existsSync(walPath)) fs.unlinkSync(walPath)
+    if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath)
+
+    // 拷贝新的数据库文件
+    fs.copyFileSync(sourcePath, targetPath)
+
+    // 告诉前端成功了，并在稍微延迟后重启
+    setTimeout(() => {
+      app.relaunch()
+      app.exit(0)
+    }, 1000)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Import DB Error:', error)
+    return { success: false, error: error.message }
+  }
+})
+
 // ========== 自动化任务 ==========
 
 let taskAbortFlags = { bad: false, good: false }
@@ -477,7 +549,6 @@ async function executeReviewTask(tab, mode, runId) {
     let totalGoodReplies = 0;
     const badReviewDetails = [];
     const goodReplyDetails = [];
-    const violationAlerts = [];
     let totalShopRuns = 0;
 
     for (const item of matchedShops) {
@@ -693,67 +764,23 @@ async function executeReviewTask(tab, mode, runId) {
           }
         }
       }
-
-      // 5. 违规预警：如果是差评模式，在当前页面直接爬取
-      if (mode === 'bad') {
-        const helper = new AutoHelper(tab.view.webContents);
-        let reviewFrame = helper.findFrame('rating-management') || helper.findFrame('shop-comment');
-        if (reviewFrame) {
-          try {
-            const violations = await reviewFrame.executeJavaScript(`
-              (function() {
-                var items = document.querySelectorAll('.shop-rating-overview__complaint-item');
-                var results = [];
-                for (var i = 0; i < items.length; i++) {
-                  var titleEl = items[i].querySelector('.shop-rating-overview__complaint-title span');
-                  var resultEl = items[i].querySelector('.shop-rating-overview__complaint-result');
-                  var badgeEl = items[i].querySelector('.shop-rating-overview__complaint-badge');
-                  var linkEl = items[i].querySelector('.shop-rating-overview__complaint-button');
-                  results.push({
-                    title: titleEl ? titleEl.textContent.trim() : '',
-                    badge: badgeEl ? badgeEl.textContent.trim() : '',
-                    desc: resultEl ? resultEl.textContent.trim().replace(/\\s+/g, ' ') : '',
-                    link: linkEl ? linkEl.href : ''
-                  });
-                }
-                return results;
-              })()
-            `);
-            if (violations && violations.length > 0) {
-              for (const v of violations) {
-                if (v.title || v.desc) {
-                  violationAlerts.push({ shop: `${displayName}`, ...v });
-                }
-              }
-            }
-          } catch (e) {
-            console.log(`[${taskName}] 提取违规预警异常:`, e.message);
-          }
-        }
-      }
-
       totalShopRuns++;
       await sleep(1000); // 门店之间加 1s 延迟防频率风控
     }
 
     // 6. 任务结束处理与通知推送
     if (mode === 'bad') {
-      const hasViolations = violationAlerts.length > 0;
-      if (totalBadReviews > 0 || hasViolations) {
+      if (totalBadReviews > 0) {
         mainWindow.webContents.send('bad-review-found', {
           tabId: tab.id,
           totalCount: totalBadReviews,
-          details: badReviewDetails,
-          violations: violationAlerts
+          details: badReviewDetails
         });
 
         if (Notification.isSupported()) {
-          const notifParts = [];
-          if (totalBadReviews > 0) notifParts.push(`${totalBadReviews} 条未回复差评`);
-          if (hasViolations) notifParts.push(`${violationAlerts.length} 条违规预警`);
           new Notification({
-            title: hasViolations && totalBadReviews === 0 ? '违规预警' : '差评/违规提醒',
-            body: `发现 ${notifParts.join('、')}，请及时处理！`
+            title: '差评提醒',
+            body: `发现 ${totalBadReviews} 条未回复差评，请及时处理！`
           }).show();
         }
 
@@ -762,15 +789,11 @@ async function executeReviewTask(tab, mode, runId) {
           const webhookUrl = settingService.get('wecom_webhook');
           if (webhookUrl) {
             const { net } = require('electron');
-            let content = `⚠️ 发现差评或违规预警！\n`;
-            if (totalBadReviews > 0) content += `\n未回复差评：${totalBadReviews} 条`;
-            if (hasViolations) content += `\n违规预警：${violationAlerts.length} 条`;
+            let content = `⚠️ 发现未回复差评！\n`;
+            content += `\n未回复差评：${totalBadReviews} 条`;
             content += `\n\n详情:`;
             badReviewDetails.forEach(d => {
               content += `\n- ${d.shop}: ${d.count} 条`;
-            });
-            violationAlerts.forEach(v => {
-              content += `\n- [违规] ${v.shop}: ${v.desc || v.title}`;
             });
 
             const request = net.request({
@@ -794,25 +817,20 @@ async function executeReviewTask(tab, mode, runId) {
         mainWindow.webContents.send('bad-review-cleared', { tabId: tab.id });
       }
 
-      const msgParts = [];
-      if (totalBadReviews > 0) msgParts.push(`${totalBadReviews} 条差评`);
-      if (hasViolations) msgParts.push(`${violationAlerts.length} 条违规预警`);
-
       mainWindow.webContents.send('task-progress-update', {
         tabId: tab.id,
         mode,
-        text: totalBadReviews > 0 || hasViolations
-          ? `🔴 差评:${totalBadReviews}条${hasViolations ? ` 违规:${violationAlerts.length}条` : ''}`
+        text: totalBadReviews > 0
+          ? `🔴 差评:${totalBadReviews}条`
           : `✅ 无异常`
       });
 
       return {
-        message: msgParts.length > 0
-          ? `发现 ${msgParts.join('、')}！`
+        message: totalBadReviews > 0
+          ? `发现 ${totalBadReviews} 条差评！`
           : `已检查 ${totalShopRuns} 个门店实例，暂无异常`,
         totalBadReviews: totalBadReviews,
         details: badReviewDetails,
-        violations: violationAlerts,
         totalShopRuns: totalShopRuns
       };
     } else {

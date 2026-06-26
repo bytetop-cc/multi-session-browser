@@ -31,22 +31,23 @@
       align-items: center;
       padding: 4px 8px;
       background: #292b2e;
-      overflow-x: auto;
-    }
-
-    .tab-bar::-webkit-scrollbar {
-      height: 4px;
-    }
-
-    .tab-bar::-webkit-scrollbar-thumb {
-      background: #5f6368;
-      border-radius: 2px;
     }
 
     #tabs {
       display: flex;
       flex: 1;
       min-width: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    #tabs::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    #tabs::-webkit-scrollbar-thumb {
+      background: #5f6368;
+      border-radius: 2px;
     }
 
     .tab {
@@ -732,6 +733,14 @@
       await ipcRenderer.invoke('open-settings')
     }
 
+    // 支持鼠标滚轮横向滚动标签栏
+    document.getElementById('tabs').addEventListener('wheel', (e) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        document.getElementById('tabs').scrollLeft += e.deltaY;
+      }
+    });
+
     // 监听任务进度实时更新
     ipcRenderer.on('task-progress-update', (event, { tabId, mode, text }) => {
       const tab = tabs.find(t => t.id === tabId)
@@ -763,13 +772,12 @@
       }
     })
 
-    async function showBadReviewModal(totalCount, details, tabId, violations) {
+    async function showBadReviewModal(totalCount, details, tabId) {
       const label = tabId ? tabSessionLabel(tabId) : ''
       const titleEl = document.getElementById('badReviewModalTitle')
       
-      const hasViolations = violations && violations.length > 0;
       if (titleEl) {
-        let titleText = hasViolations && totalCount === 0 ? '违规预警' : (hasViolations && totalCount > 0 ? '差评 & 违规预警' : '差评提醒');
+        let titleText = '差评提醒';
         titleEl.textContent = label ? `${titleText} · 标签 ${label}` : titleText
       }
       const bodyEl = document.getElementById('badReviewModalBody')
@@ -779,7 +787,6 @@
       
       let text = '';
       if (totalCount > 0) text += `共发现 ${totalCount} 条差评`;
-      if (hasViolations) text += (text ? '，以及 ' : '发现 ') + `${violations.length} 条违规预警`;
       
       p.textContent = label ? `本标签页内${text}，涉及以下门店：` : `${text}，涉及以下门店：`
       bodyEl.appendChild(p)
@@ -791,14 +798,7 @@
         li.textContent = `${shop}：${n} 条`
         ul.appendChild(li)
       }
-      if (hasViolations) {
-        for (const v of violations) {
-          const li = document.createElement('li')
-          li.innerHTML = `<span style="color:#ea4335">⚠ ${v.shop}</span>：${v.badge ? v.badge + ' - ' : ''}${v.desc || v.title}`
-          ul.appendChild(li)
-        }
-      }
-      if ((!details || details.length === 0) && !hasViolations) {
+      if (!details || details.length === 0) {
         const li = document.createElement('li')
         li.textContent = '（无明细）'
         ul.appendChild(li)
@@ -836,13 +836,12 @@
     })
 
     // 监听差评发现事件（弹窗前先摘下 BrowserView，否则弹窗会被嵌入页盖住）
-    ipcRenderer.on('bad-review-found', async (event, { tabId, totalCount, details, violations }) => {
-      console.log('[前端] 收到差评通知:', tabId, totalCount, details, violations)
+    ipcRenderer.on('bad-review-found', async (event, { tabId, totalCount, details }) => {
+      console.log('[前端] 收到差评通知:', tabId, totalCount, details)
       const tab = tabs.find(t => t.id === tabId)
       if (tab) {
         tab.hasBadReview = true
         tab.badReviewCount = typeof totalCount === 'number' ? totalCount : 0
-        tab.violationCount = (violations || []).length
         updateTabResult(tab, 'bad', details)
         renderTabs()
       }
@@ -855,9 +854,7 @@
         return samples ? `${d.shop}: ${d.count}条 (${samples})` : `${d.shop}: ${d.count}条`
       }).join(' | ')
       
-      const hasViolations = violations && violations.length > 0;
       let statusText = `发现${totalCount}条差评`;
-      if (hasViolations) statusText += `，${violations.length}条违规`;
       if (shopInfo) statusText += ` (${shopInfo})`;
       
       updateStatus('badReviewStatus', statusText, true)
@@ -868,7 +865,6 @@
       if (tab) {
         tab.hasBadReview = false
         tab.badReviewCount = 0
-        tab.violationCount = 0
         tab.progressText = '✅ 差评:无'
         renderTabs()
       }
@@ -930,14 +926,10 @@
     function updateSummaryUI(mode) {
       if (mode === 'bad') {
         let totalBad = 0;
-        let totalViolations = 0;
         
         tabs.forEach(t => {
           if (t.badReviewCount !== undefined) {
             totalBad += t.badReviewCount;
-          }
-          if (t.violationCount !== undefined) {
-            totalViolations += t.violationCount;
           }
         });
 
@@ -946,7 +938,6 @@
         document.getElementById('badReviewSummaryResult').innerHTML = `
           <div>- 已检标签: <b>${tabs.length} 个</b></div>
           <div style="color: #ff8a80; margin-top: 2px;">- 待回复差评: <b>${totalBad} 条</b></div>
-          <div style="color: #ff8a80; margin-top: 2px;">- 违规预警数: <b>${totalViolations} 条</b></div>
           <div style="font-size: 10px; color: #9aa0a6; margin-top: 6px;">更新时间: ${timeStr}</div>
         `;
       } else if (mode === 'good') {
@@ -1042,7 +1033,6 @@
         t.progressText = '🔍 正在启动检查...'
         t.hasBadReview = false
         t.badReviewCount = 0
-        t.violationCount = 0
       })
       renderTabs()
       
@@ -1080,7 +1070,6 @@
           const tab = tabs.find(t => t.id === tid)
           if (tab && result) {
             tab.badReviewCount = result.totalBadReviews || 0
-            tab.violationCount = (result.violations || []).length
             totalCheckedShops += (result.totalShopRuns || 0)
             updateTabResult(tab, 'bad', result.details)
             renderTabs()
@@ -1244,30 +1233,54 @@
     }
 
     function updateAutoBtnState() {
-      const isRunning = badReviewInterval || goodReviewInterval || dataAnalysisTimeout
+      const isRunning = badReviewInterval || goodReviewInterval || dataAnalysisInterval
       document.getElementById('autoBtn').classList.toggle('running', !!isRunning)
     }
 
-    let dataAnalysisTimeout = null;
+    let dataAnalysisInterval = null;
+    let dataAnalysisNextRunTime = null;
 
     async function toggleDataAnalysis() {
       const enabled = document.getElementById('dataAnalysisSwitch').checked
       if (enabled) {
-        scheduleNextDataAnalysis()
+        startDataAnalysisSchedule()
       } else {
-        if (dataAnalysisTimeout) {
-          clearTimeout(dataAnalysisTimeout)
-          dataAnalysisTimeout = null
+        if (dataAnalysisInterval) {
+          clearInterval(dataAnalysisInterval)
+          dataAnalysisInterval = null
         }
         updateStatus('dataAnalysisStatus', '已禁用')
       }
       updateAutoBtnState()
     }
 
-    function scheduleNextDataAnalysis() {
+    function startDataAnalysisSchedule() {
       const enabled = document.getElementById('dataAnalysisSwitch').checked
       if (!enabled) return
 
+      if (dataAnalysisInterval) clearInterval(dataAnalysisInterval)
+      calculateNextRunTime()
+
+      // 每 1 分钟检查一次系统时间
+      dataAnalysisInterval = setInterval(async () => {
+        const now = new Date().getTime()
+        if (dataAnalysisNextRunTime && now >= dataAnalysisNextRunTime) {
+          // 时间到了，执行任务
+          dataAnalysisNextRunTime = null // 避免在执行期间重复触发
+          await runDataAnalysisAll()
+          calculateNextRunTime() // 安排明天的任务
+        } else if (dataAnalysisNextRunTime) {
+          // 仅更新剩余时间显示
+          const delay = dataAnalysisNextRunTime - now
+          const nextNine = new Date(dataAnalysisNextRunTime)
+          const hoursStr = nextNine.getHours().toString().padStart(2, '0')
+          const minsStr = nextNine.getMinutes().toString().padStart(2, '0')
+          updateStatus('dataAnalysisStatus', `下次触发: 每天 ${hoursStr}:${minsStr} (剩 ${Math.round(delay / 3600000 * 10) / 10} 小时)`)
+        }
+      }, 60000)
+    }
+
+    function calculateNextRunTime() {
       const now = new Date()
       let nextNine = new Date()
       nextNine.setHours(9, 0, 0, 0)
@@ -1277,17 +1290,13 @@
         nextNine.setDate(nextNine.getDate() + 1)
       }
 
-      const delay = nextNine.getTime() - now.getTime()
-      console.log('[前端] 下次数据分析触发延迟:', delay, 'ms，预计时间:', nextNine.toLocaleString())
+      dataAnalysisNextRunTime = nextNine.getTime()
       
+      const delay = dataAnalysisNextRunTime - now.getTime()
       const hoursStr = nextNine.getHours().toString().padStart(2, '0')
       const minsStr = nextNine.getMinutes().toString().padStart(2, '0')
       updateStatus('dataAnalysisStatus', `下次触发: 每天 ${hoursStr}:${minsStr} (剩 ${Math.round(delay / 3600000 * 10) / 10} 小时)`)
-
-      dataAnalysisTimeout = setTimeout(async () => {
-        await runDataAnalysisAll()
-        scheduleNextDataAnalysis() // 递归安排明天
-      }, delay)
+      console.log('[前端] 数据分析已规划在:', nextNine.toLocaleString())
     }
 
     async function runDataAnalysisAll() {
