@@ -330,7 +330,7 @@ ipcMain.handle('export-database', async (event) => {
   try {
     const { canceled, filePath } = await dialog.showSaveDialog({
       title: '导出数据',
-      defaultPath: `meituan-helper-backup-${new Date().toISOString().slice(0,10)}.db`,
+      defaultPath: `meituan-helper-backup-${new Date().toISOString().slice(0, 10)}.db`,
       filters: [{ name: 'Database', extensions: ['db'] }]
     })
 
@@ -340,7 +340,7 @@ ipcMain.handle('export-database', async (event) => {
 
     // 执行一次 checkpoint 确保内存/WAL的数据写回到主文件
     db.pragma('wal_checkpoint(TRUNCATE)')
-    
+
     // 拷贝文件
     const sourcePath = path.join(app.getPath('userData'), 'app-data.db')
     fs.copyFileSync(sourcePath, filePath)
@@ -370,7 +370,7 @@ ipcMain.handle('import-database', async (event) => {
     // 导入需要替换现有数据库
     // 最好关闭当前数据库连接，拷贝文件，然后重启应用
     db.close()
-    
+
     // 删除旧的 wal 和 shm 文件以防冲突
     const walPath = targetPath + '-wal'
     const shmPath = targetPath + '-shm'
@@ -834,18 +834,18 @@ async function executeReviewTask(tab, mode, runId) {
         totalShopRuns: totalShopRuns
       };
     } else {
-        mainWindow.webContents.send('task-progress-update', {
-          tabId: tab.id,
-          mode,
-          text: `✅ 回复完成 (已回:${totalGoodReplies}条)`
-        });
+      mainWindow.webContents.send('task-progress-update', {
+        tabId: tab.id,
+        mode,
+        text: `✅ 回复完成 (已回:${totalGoodReplies}条)`
+      });
 
-        return {
-           message: `已检查 ${totalShopRuns} 个门店实例，自动回复完成，共回复 ${totalGoodReplies} 条好评`,
-           count: totalGoodReplies,
-           details: goodReplyDetails,
-           totalShopRuns: totalShopRuns
-        };
+      return {
+        message: `已检查 ${totalShopRuns} 个门店实例，自动回复完成，共回复 ${totalGoodReplies} 条好评`,
+        count: totalGoodReplies,
+        details: goodReplyDetails,
+        totalShopRuns: totalShopRuns
+      };
     }
 
   } catch (e) {
@@ -971,7 +971,7 @@ async function executeDataAnalysis(tab) {
   const day = String(yesterday.getDate()).padStart(2, '0');
   const dateStr = `${year}-${month}-${day}`;
   const dateParam = `${dateStr},${dateStr}`;
-  
+
   // 以昨天开始时分秒为基准，转换为毫秒时间戳字符串，用于多维表格日期类型写入
   const yesterdayStart = new Date(yesterday.setHours(0, 0, 0, 0));
   const dateTimestampStr = String(yesterdayStart.getTime());
@@ -986,7 +986,7 @@ async function executeDataAnalysis(tab) {
 
     for (const platformVal of [1, 2]) {
       const platformName = platformVal === 1 ? '点评' : '美团';
-      
+
       // 延迟 2s 防频控
       await new Promise(r => setTimeout(r, 2000));
 
@@ -1083,7 +1083,7 @@ async function executeDataAnalysis(tab) {
             } else {
               val = parseFloat(valStr.replace(/,/g, '')) || 0;
             }
-            
+
             if (it.variable === 'review_new_cnt') newReviews = val;
             if (it.variable === 'bad_review_new_cnt') newBadReviews = val;
             if (it.variable === 'bad_review_reply_rate') {
@@ -1143,7 +1143,7 @@ async function executeDataAnalysis(tab) {
                 'Content-Type': 'application/json; charset=utf-8'
               }
             });
-            
+
             request.on('response', (response) => {
               let chunks = [];
               response.on('data', (chunk) => {
@@ -1163,15 +1163,15 @@ async function executeDataAnalysis(tab) {
                 }
               });
             });
-            
+
             request.on('error', (err) => {
               reject(err);
             });
-            
+
             request.write(JSON.stringify(payloadBody));
             request.end();
           });
-          
+
           await sendWebhookPromise;
           successCount++;
           console.log(`[数据分析] [${displayName}] [${platformName}] 腾讯多维表格数据写入成功`);
