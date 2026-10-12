@@ -574,29 +574,52 @@ async function executeReviewTask(tab, mode, runId) {
 
         const reviewData = await tab.view.webContents.executeJavaScript(`
           (async function() {
-            try {
-              const res = await fetch('/gateway/merchant/review/list', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  platform: ${platformVal},
-                  shopIds: [${shopId}],
-                  tagId: ${mode === 'bad' ? 3 : 1},
-                  startTime: ${startTime},
-                  endTime: ${endTime},
-                  aiReply: false,
-                  pageNo: 1,
-                  pageSize: 10
-                })
-              });
-              const data = await res.json();
-              if (data && data.code === 200 && data.data) {
-                return data.data;
+            // mode === 'bad' 时拉取 4 星以下：差评 tagId: 3 (1-2星) + 中评 tagId: 2 (3星)
+            // mode === 'good' 时拉取好评 tagId: 1 (4-5星)
+            const tagIds = ${mode === 'bad' ? '[3, 2]' : '[1]'};
+            let allDetails = [];
+            let totalSize = 0;
+            const seenIds = new Set();
+            for (const tId of tagIds) {
+              try {
+                const res = await fetch('/gateway/merchant/review/list', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    platform: ${platformVal},
+                    shopIds: [${shopId}],
+                    tagId: tId,
+                    startTime: ${startTime},
+                    endTime: ${endTime},
+                    aiReply: false,
+                    pageNo: 1,
+                    pageSize: 10
+                  })
+                });
+                const data = await res.json();
+                if (data && data.code === 200 && data.data) {
+                  totalSize += data.data.totalSize || 0;
+                  const list = data.data.reviewDetails || [];
+                  for (const item of list) {
+                    const rId = item.reviewDetail && item.reviewDetail.reviewInfo && item.reviewDetail.reviewInfo.reviewId;
+                    if (rId) {
+                      if (!seenIds.has(rId)) {
+                        seenIds.add(rId);
+                        allDetails.push(item);
+                      }
+                    } else {
+                      allDetails.push(item);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error('[API] 拉取评价异常:', e.message);
               }
-            } catch (e) {
-              console.error('[API] 拉取评价异常:', e.message);
+              if (tagIds.length > 1) {
+                await new Promise(r => setTimeout(r, 600));
+              }
             }
-            return null;
+            return { totalSize, reviewDetails: allDetails };
           })()
         `);
 
@@ -627,7 +650,7 @@ async function executeReviewTask(tab, mode, runId) {
           const replyList = detail.reviewDetail && detail.reviewDetail.replyList;
           const isReplied = !!(replyList && replyList.length > 0);
 
-          if (mode === 'bad' && !isReplied) {
+          if (mode === 'bad' && starLevel < 4 && !isReplied) {
             let contentPreview = reviewInfo.content || reviewInfo.comment || '';
             if (contentPreview.length > 120) {
               contentPreview = contentPreview.slice(0, 120) + '…';
@@ -685,8 +708,17 @@ async function executeReviewTask(tab, mode, runId) {
               let successCount = 0;
               let debugLogs = [];
               
-              function getRandomTemplate() {
-                const t = templates[Math.floor(Math.random() * templates.length)];
+              // 洗牌算法（Fisher-Yates Shuffle）打乱当前门店模板顺序
+              const shuffledTemplates = [...templates];
+              for (let i = shuffledTemplates.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledTemplates[i], shuffledTemplates[j]] = [shuffledTemplates[j], shuffledTemplates[i]];
+              }
+              let templateIdx = 0;
+              function getShuffledTemplate() {
+                if (shuffledTemplates.length === 0) return '感谢您的好评，我们会继续努力！';
+                const t = shuffledTemplates[templateIdx % shuffledTemplates.length];
+                templateIdx++;
                 return t ? (t.content || t.text || t) : '感谢您的好评，我们会继续努力！';
               }
               
@@ -697,7 +729,7 @@ async function executeReviewTask(tab, mode, runId) {
                 const reviewId = reviewInfo ? reviewInfo.reviewId : null;
                 if (!reviewId) continue;
                 
-                const content = getRandomTemplate();
+                const content = getShuffledTemplate();
                 const targetUrl = window.location.origin + '/review/app/reply/ajax/reviewreply';
                 
                 // platform 映射：查询列表时的 platformVal = 1 (点评) / 2 (美团)

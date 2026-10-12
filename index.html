@@ -847,7 +847,7 @@
       }
       const shopInfo = (details || []).map(d => {
         const samples = (d.reviews || []).slice(0, 2).map(r => {
-          const star = r.rating != null && r.rating !== '' ? `${r.rating}星` : ''
+          const star = r.rating != null && r.rating !== '' ? (String(r.rating).includes('星') ? r.rating : `${r.rating}星`) : ''
           const time = r.reviewTime || ''
           return [time, star].filter(Boolean).join(' ')
         }).filter(Boolean).join('; ')
