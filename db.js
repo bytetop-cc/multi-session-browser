@@ -1,4 +1,5 @@
 const Database = require('better-sqlite3')
+const { reserveReplyTemplates } = require('./reply-template-rotation')
 const path = require('path') // db path definition
 const { app } = require('electron')
 
@@ -125,6 +126,15 @@ const shopService = {
 
 // 好评模板 CRUD（按门店）
 const templateService = {
+  reserveReplies(shopId, count) {
+    return db.transaction(() => {
+      const templates = db.prepare('SELECT * FROM templates WHERE shop_id = ? ORDER BY id').all(shopId)
+      const { contents, increments } = reserveReplyTemplates(templates, count)
+      const increment = db.prepare('UPDATE templates SET use_count = COALESCE(use_count, 0) + ? WHERE id = ? AND shop_id = ?')
+      for (const [id, amount] of increments) increment.run(amount, id, shopId)
+      return contents
+    })()
+  },
   getByShopId(shopId) {
     return db
       .prepare('SELECT * FROM templates WHERE shop_id = ? ORDER BY created_at DESC')

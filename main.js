@@ -698,7 +698,12 @@ async function executeReviewTask(tab, mode, runId) {
           console.log(`[${taskName}] 发现 [${displayName}] (${platformName}) 有 ${shopNeedReplyGoodReviews.length} 条未回复好评，开始执行 API 回复...`);
 
           const repliesBase64 = Buffer.from(JSON.stringify(shopNeedReplyGoodReviews)).toString('base64');
-          const templatesBase64 = Buffer.from(JSON.stringify(shopTemplates)).toString('base64');
+          // 发送前持久化使用计数，后续任务和两平台共用当前门店的计数。
+          const replyContents = templateService.reserveReplies(
+            item.cfg.id,
+            shopNeedReplyGoodReviews.filter(d => d.reviewDetail?.reviewInfo?.reviewId).length
+          );
+          const templatesBase64 = Buffer.from(JSON.stringify(replyContents)).toString('base64');
 
           const replyResult = await tab.view.webContents.executeJavaScript(`
             (async function() {
@@ -708,18 +713,9 @@ async function executeReviewTask(tab, mode, runId) {
               let successCount = 0;
               let debugLogs = [];
               
-              // 洗牌算法（Fisher-Yates Shuffle）打乱当前门店模板顺序
-              const shuffledTemplates = [...templates];
-              for (let i = shuffledTemplates.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffledTemplates[i], shuffledTemplates[j]] = [shuffledTemplates[j], shuffledTemplates[i]];
-              }
               let templateIdx = 0;
-              function getShuffledTemplate() {
-                if (shuffledTemplates.length === 0) return '感谢您的好评，我们会继续努力！';
-                const t = shuffledTemplates[templateIdx % shuffledTemplates.length];
-                templateIdx++;
-                return t ? (t.content || t.text || t) : '感谢您的好评，我们会继续努力！';
+              function getNextTemplate() {
+                return templates[templateIdx++];
               }
               
               const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -729,7 +725,7 @@ async function executeReviewTask(tab, mode, runId) {
                 const reviewId = reviewInfo ? reviewInfo.reviewId : null;
                 if (!reviewId) continue;
                 
-                const content = getShuffledTemplate();
+                const content = getNextTemplate();
                 const targetUrl = window.location.origin + '/review/app/reply/ajax/reviewreply';
                 
                 // platform 映射：查询列表时的 platformVal = 1 (点评) / 2 (美团)

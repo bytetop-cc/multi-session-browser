@@ -23,6 +23,7 @@
     "files": [
       "main.js",
       "db.js",
+      "reply-template-rotation.js",
       "auto-helper.js",
       "iframe-bridge.js",
       "index.html",
