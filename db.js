@@ -46,7 +46,6 @@ function initDatabase() {
     CREATE TABLE IF NOT EXISTS templates (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       content TEXT NOT NULL,
-      use_count INTEGER DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `)
@@ -60,6 +59,7 @@ function initDatabase() {
   `)
 
   migrateTemplatesShopId()
+  migrateRemoveTemplateUseCount()
   purgeTemplatesWithoutShop()
   
   // 临时设置 wecom_webhook 地址
@@ -73,6 +73,14 @@ function migrateTemplatesShopId() {
   const cols = db.prepare('PRAGMA table_info(templates)').all()
   if (!cols.some(c => c.name === 'shop_id')) {
     db.exec('ALTER TABLE templates ADD COLUMN shop_id INTEGER REFERENCES shops(id)')
+  }
+}
+
+// 旧数据库只删除已停用的计数字段，保留模板及其门店归属。
+function migrateRemoveTemplateUseCount() {
+  const cols = db.prepare('PRAGMA table_info(templates)').all()
+  if (cols.some(c => c.name === 'use_count')) {
+    db.exec('ALTER TABLE templates DROP COLUMN use_count')
   }
 }
 
@@ -129,9 +137,9 @@ const templateService = {
   reserveReplies(shopId, count) {
     return db.transaction(() => {
       const templates = db.prepare('SELECT * FROM templates WHERE shop_id = ? ORDER BY id').all(shopId)
-      const { contents, increments } = reserveReplyTemplates(templates, count)
-      const increment = db.prepare('UPDATE templates SET use_count = COALESCE(use_count, 0) + ? WHERE id = ? AND shop_id = ?')
-      for (const [id, amount] of increments) increment.run(amount, id, shopId)
+      const key = `good_reply_last_content:${shopId}`
+      const { contents, lastContent } = reserveReplyTemplates(templates, count, settingService.get(key))
+      if (contents.length) settingService.set(key, lastContent)
       return contents
     })()
   },

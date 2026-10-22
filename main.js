@@ -698,7 +698,7 @@ async function executeReviewTask(tab, mode, runId) {
           console.log(`[${taskName}] 发现 [${displayName}] (${platformName}) 有 ${shopNeedReplyGoodReviews.length} 条未回复好评，开始执行 API 回复...`);
 
           const repliesBase64 = Buffer.from(JSON.stringify(shopNeedReplyGoodReviews)).toString('base64');
-          // 发送前持久化使用计数，后续任务和两平台共用当前门店的计数。
+          // 发送前保存最后使用的文案，后续任务和两平台共用当前门店的记录。
           const replyContents = templateService.reserveReplies(
             item.cfg.id,
             shopNeedReplyGoodReviews.filter(d => d.reviewDetail?.reviewInfo?.reviewId).length
