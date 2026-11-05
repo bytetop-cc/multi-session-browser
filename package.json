@@ -9,7 +9,14 @@
     "build:win": "electron-builder --win",
     "build:all": "electron-builder --mac --win",
     "postinstall": "patch-package",
-    "dev": "nodemon --watch main.js --watch db.js --exec electron ."
+    "dev": "nodemon --watch main.js --watch db.js --exec electron .",
+    "build:reports": "node scripts/build-reports.cjs",
+    "prestart": "node scripts/build-reports.cjs",
+    "prebuild": "node scripts/build-reports.cjs",
+    "prebuild:mac": "node scripts/build-reports.cjs",
+    "prebuild:win": "node scripts/build-reports.cjs",
+    "prebuild:all": "node scripts/build-reports.cjs",
+    "predev": "node scripts/build-reports.cjs"
   },
   "author": "chenchuan",
   "license": "ISC",
@@ -28,7 +35,16 @@
       "iframe-bridge.js",
       "index.html",
       "settings.html",
-      "docs/**/*"
+      "dashboard.html",
+      "docs/**/*",
+      "analysis.html",
+      "analysis-core.js",
+      "analysis-service.js",
+      "analysis-main.js",
+      "report-assets/**/*",
+      "comparison-core.js",
+      "analysis-pdf.js",
+      "report-print.html"
     ],
     "mac": {
       "category": "public.app-category.productivity",
@@ -54,11 +70,20 @@
     "electron": "^41.1.0",
     "electron-builder": "^26.8.1",
     "electron-rebuild": "^3.2.9",
+    "esbuild": "^0.28.2",
     "nodemon": "^3.1.14",
     "patch-package": "^8.0.1"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.3.4",
+    "antd": "^6.7.0",
     "better-sqlite3": "^12.11.1",
-    "playwright": "^1.59.1"
+    "dayjs": "^1.11.23",
+    "echarts": "^6.1.0",
+    "playwright": "^1.59.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   }
 }

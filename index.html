@@ -150,7 +150,7 @@
       background: rgba(255,255,255,0.1);
     }
 
-    .settings-btn {
+    .settings-btn, .dashboard-btn {
       width: 28px;
       height: 28px;
       border-radius: 50%;
@@ -159,12 +159,14 @@
       justify-content: center;
       cursor: pointer;
       font-size: 16px;
-      margin-left: 8px;
+      margin-left: 6px;
       flex-shrink: 0;
+      transition: background 0.15s, transform 0.15s;
     }
 
-    .settings-btn:hover {
-      background: rgba(255,255,255,0.1);
+    .settings-btn:hover, .dashboard-btn:hover {
+      background: rgba(255,255,255,0.15);
+      transform: scale(1.05);
     }
 
     /* 地址栏 */
@@ -462,6 +464,8 @@
     <div class="tab-bar">
       <div id="tabs"></div>
       <div class="new-tab-btn" onclick="createNewTab()">+</div>
+      <div class="dashboard-btn" onclick="openDashboard()" title="经营数据看板 (日报 / 周报 / 月报)">📊</div>
+      <div class="dashboard-btn" onclick="ipcRenderer.invoke('open-analysis')" title="AI 经营分析">AI</div>
       <div class="settings-btn" onclick="openSettings()" title="设置">⚙</div>
     </div>
     <div class="address-bar">
@@ -514,22 +518,7 @@
         </div>
         <div class="auto-task-status" id="goodReviewStatus"></div>
       </div>
-      <div class="auto-task" style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-          <div class="auto-task-info">
-            <div class="auto-task-name">数据分析</div>
-            <div class="auto-task-desc">每日早上9点自动执行并同步到腾讯智能表格</div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="task-action-btn" onclick="runDataAnalysisAll()">立即执行</button>
-            <label class="switch">
-              <input type="checkbox" id="dataAnalysisSwitch" checked onchange="toggleDataAnalysis()">
-              <span class="switch-slider"></span>
-            </label>
-          </div>
-        </div>
-        <div class="auto-task-status" id="dataAnalysisStatus"></div>
-      </div>
+
     </div>
   </div>
 
@@ -733,6 +722,10 @@
       await ipcRenderer.invoke('open-settings')
     }
 
+    async function openDashboard() {
+      await ipcRenderer.invoke('open-dashboard')
+    }
+
     // 支持鼠标滚轮横向滚动标签栏
     document.getElementById('tabs').addEventListener('wheel', (e) => {
       if (e.deltaY !== 0) {
@@ -878,9 +871,6 @@
         }
         if (document.getElementById('goodReviewSwitch').checked) {
           toggleGoodReviewReply()
-        }
-        if (document.getElementById('dataAnalysisSwitch').checked) {
-          toggleDataAnalysis()
         }
       }, 1500)
     })
@@ -1233,90 +1223,8 @@
     }
 
     function updateAutoBtnState() {
-      const isRunning = badReviewInterval || goodReviewInterval || dataAnalysisInterval
+      const isRunning = badReviewInterval || goodReviewInterval
       document.getElementById('autoBtn').classList.toggle('running', !!isRunning)
-    }
-
-    let dataAnalysisInterval = null;
-    let dataAnalysisNextRunTime = null;
-
-    async function toggleDataAnalysis() {
-      const enabled = document.getElementById('dataAnalysisSwitch').checked
-      if (enabled) {
-        startDataAnalysisSchedule()
-      } else {
-        if (dataAnalysisInterval) {
-          clearInterval(dataAnalysisInterval)
-          dataAnalysisInterval = null
-        }
-        updateStatus('dataAnalysisStatus', '已禁用')
-      }
-      updateAutoBtnState()
-    }
-
-    function startDataAnalysisSchedule() {
-      const enabled = document.getElementById('dataAnalysisSwitch').checked
-      if (!enabled) return
-
-      if (dataAnalysisInterval) clearInterval(dataAnalysisInterval)
-      calculateNextRunTime()
-
-      // 每 1 分钟检查一次系统时间
-      dataAnalysisInterval = setInterval(async () => {
-        if (isDataAnalysisRunning) return // 正在运行时跳过检查和状态覆盖
-
-        const now = new Date().getTime()
-        if (dataAnalysisNextRunTime && now >= dataAnalysisNextRunTime) {
-          // 时间到了，执行任务
-          dataAnalysisNextRunTime = null // 避免在执行期间重复触发
-          await runDataAnalysisAll()
-          calculateNextRunTime() // 安排明天的任务
-        } else if (dataAnalysisNextRunTime) {
-          // 仅更新剩余时间显示
-          const delay = dataAnalysisNextRunTime - now
-          const nextNine = new Date(dataAnalysisNextRunTime)
-          const hoursStr = nextNine.getHours().toString().padStart(2, '0')
-          const minsStr = nextNine.getMinutes().toString().padStart(2, '0')
-          updateStatus('dataAnalysisStatus', `下次触发: 每天 ${hoursStr}:${minsStr} (剩 ${Math.round(delay / 3600000 * 10) / 10} 小时)`)
-        }
-      }, 60000)
-    }
-
-    function calculateNextRunTime() {
-      const now = new Date()
-      let nextNine = new Date()
-      nextNine.setHours(9, 0, 0, 0)
-
-      if (now.getTime() >= nextNine.getTime()) {
-        // 如果今天已经过了9点，安排到明天的9点
-        nextNine.setDate(nextNine.getDate() + 1)
-      }
-
-      dataAnalysisNextRunTime = nextNine.getTime()
-      
-      const delay = dataAnalysisNextRunTime - now.getTime()
-      const hoursStr = nextNine.getHours().toString().padStart(2, '0')
-      const minsStr = nextNine.getMinutes().toString().padStart(2, '0')
-      updateStatus('dataAnalysisStatus', `下次触发: 每天 ${hoursStr}:${minsStr} (剩 ${Math.round(delay / 3600000 * 10) / 10} 小时)`)
-      console.log('[前端] 数据分析已规划在:', nextNine.toLocaleString())
-    }
-
-    let isDataAnalysisRunning = false;
-
-    async function runDataAnalysisAll() {
-      if (isDataAnalysisRunning) return;
-      isDataAnalysisRunning = true;
-      updateStatus('dataAnalysisStatus', '正在分析并同步至腾讯智能表格...')
-      try {
-        const result = await ipcRenderer.invoke('run-data-analysis')
-        console.log('[前端] 数据分析结果:', result)
-        updateStatus('dataAnalysisStatus', result.success ? `✅ 分析成功: ${result.message}` : `❌ 分析失败: ${result.message}`, !result.success)
-      } catch (e) {
-        console.error('[前端] 数据分析异常:', e.message)
-        updateStatus('dataAnalysisStatus', `❌ 执行异常: ${e.message}`, true)
-      } finally {
-        isDataAnalysisRunning = false;
-      }
     }
 
     function updateStatus(elementId, message, isError = false) {

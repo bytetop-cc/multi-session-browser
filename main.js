@@ -5,12 +5,13 @@ const path = require('path')
 app.setPath('userData', path.join(app.getPath('appData'), 'multi-session-browser'))
 
 const { BrowserWindow, BrowserView, ipcMain, session, Notification } = require('electron')
-const { initDatabase, shopService, templateService, settingService, db } = require('./db')
+const { initDatabase, shopService, templateService, settingService, metricService, db } = require('./db')
 const { AutoHelper } = require('./auto-helper')
 const { readReviewFilterDebug } = require('./iframe-bridge')
 
 let mainWindow = null
 let settingsWindow = null
+let dashboardWindow = null
 let tabCounter = 0
 const tabs = new Map() // tabId -> { view, partition }
 /** 弹窗显示时曾从窗口摘下 BrowserView，关闭时需挂回 */
@@ -223,6 +224,7 @@ ipcMain.handle('shell-modal-set', (event, { open }) => {
 
 app.whenReady().then(() => {
   initDatabase()
+  require('./analysis-main').registerAnalysis({ app, db, ipcMain, BrowserWindow, safeStorage: require('electron').safeStorage, metricService })
   createMainWindow()
 })
 
@@ -901,10 +903,19 @@ ipcMain.handle('run-good-review-reply', async (event, payload) => {
   return await executeReviewTask(tabs.get(tabId), 'good', runId);
 });
 
-// 数据分析并写入腾讯智能表格的任务
-async function executeDataAnalysis(tab) {
+// 数据分析并写入本地 SQLite 数据库的任务
+let isRangeSyncing = false;
+let isSingleSyncing = false;
+let abortRangeSync = false;
+
+async function executeDataAnalysis(tab, customDateStr = null) {
+
   if (!tab) {
     return { success: false, message: '未找到可用标签页，请打开点评商户后台' };
+  }
+
+  if (abortRangeSync) {
+    return { success: false, message: '同步任务已被中止' };
   }
 
   const shops = shopService.getAll();
@@ -919,7 +930,7 @@ async function executeDataAnalysis(tab) {
       (async function() {
         try {
           const res = await fetch('/gateway/merchant/general/shopinfo', {
-            method: 'POST',
+            method: 'POST', signal: AbortSignal.timeout(15000),
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               bizType: "review_manage_checkbox",
@@ -974,70 +985,189 @@ async function executeDataAnalysis(tab) {
     return { success: false, message: '未匹配到任何点评后台门店，请检查门店名称设置' };
   }
 
-  // 获取多维表格 Webhook 配置及列 ID 映射
-  const tencentWebhook = settingService.get('tencent_webhook');
-  const fieldIdDate = settingService.get('tencent_field_date') || 'f04Gwj';
-  const fieldIdShop = settingService.get('tencent_field_shop') || 'f85uZN';
-  const fieldIdPlatform = settingService.get('tencent_field_platform') || 'fPbfxp';
-  const fieldIdExposure = settingService.get('tencent_field_exposure') || 'ftQMc5';
-  const fieldIdVisits = settingService.get('tencent_field_visits') || 'fRUP1E';
-  const fieldIdOrders = settingService.get('tencent_field_orders') || 'fBCtjw';
-  const fieldIdOrderAmount = settingService.get('tencent_field_order_amount') || 'f1VE8Q';
-  const fieldIdOrderCoupons = settingService.get('tencent_field_order_coupons') || 'fKBAl5';
-  const fieldIdVerifyAmount = settingService.get('tencent_field_verify_amount') || 'fJBh3Y';
-  const fieldIdVerifyCoupons = settingService.get('tencent_field_verify_coupons') || 'fGL8gW';
-  const fieldIdStar = settingService.get('tencent_field_star') || 'ftk5Tx';
-  const fieldIdNewReviews = settingService.get('tencent_field_new_reviews') || 'fw252u';
-  const fieldIdNewBadReviews = settingService.get('tencent_field_new_bad_reviews') || 'fXQZGl';
-  const fieldIdBadReplyRate = settingService.get('tencent_field_bad_reply_rate') || 'f3Wvet';
-
-  // 计算昨天日期 (格式为 YYYY-MM-DD)
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const year = yesterday.getFullYear();
-  const month = String(yesterday.getMonth() + 1).padStart(2, '0');
-  const day = String(yesterday.getDate()).padStart(2, '0');
-  const dateStr = `${year}-${month}-${day}`;
+  // 确定目标统计日期 (格式为 YYYY-MM-DD，默认为昨天)
+  let dateStr = customDateStr;
+  if (!dateStr) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const year = yesterday.getFullYear();
+    const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const day = String(yesterday.getDate()).padStart(2, '0');
+    dateStr = `${year}-${month}-${day}`;
+  }
   const dateParam = `${dateStr},${dateStr}`;
 
-  // 以昨天开始时分秒为基准，转换为毫秒时间戳字符串，用于多维表格日期类型写入
-  const yesterdayStart = new Date(yesterday.setHours(0, 0, 0, 0));
-  const dateTimestampStr = String(yesterdayStart.getTime());
-
   let successCount = 0;
-  let detailMessages = [];
+  let skippedCount = 0;
   let errorMessages = [];
 
   for (const item of matchedShops) {
+    if (abortRangeSync) {
+      console.log('[数据分析] 收到中止指令，停止当前拉取');
+      break;
+    }
     const shopId = item.api.shopId;
     const displayName = `${item.api.shopName}${item.api.branchName ? '(' + item.api.branchName + ')' : ''}`;
 
+    // 预订订单状态按当日下单时间筛选，保存各状态当前快照。
+    for (const [orderType, statusName] of [[0, '全部'], [3, '已消费'], [5, '已退款'], [1, '待消费']]) {
+      if (abortRangeSync) break;
+      try {
+        const startTime = new Date(dateStr + 'T00:00:00+08:00').getTime();
+        const query = new URLSearchParams({ shopid: String(shopId), shopidstr: String(shopId),
+          bizname: 'commonbook', searchstring: '', orderstarttime: String(startTime),
+          orderendtime: String(startTime + 86400000 - 1000), currordertype: String(orderType),
+          limit: '10', start: '0', yodaReady: 'h5', csecplatform: '4', csecversion: '4.3.0' });
+        const total = await tab.view.webContents.executeJavaScript(`
+          (async () => {
+            try {
+              const response = await fetch(${JSON.stringify('/trade/order/orderlist.api?' + query.toString())}, {
+                credentials: 'include', signal: AbortSignal.timeout(15000)
+              });
+              if (!response.ok) return null;
+              const json = await response.json();
+              return Number.isSafeInteger(json?.recordCount) && json.recordCount >= 0 ? json.recordCount : null;
+            } catch (_) { return null; }
+          })()
+        `);
+        if (total !== null) metricService.saveBookingTotal({ shopId, date: dateStr, orderType, total });
+        else errorMessages.push(`[${displayName}] 预订${statusName}未获取，保留已有统计`);
+      } catch (error) {
+        errorMessages.push(`[${displayName}] 预订${statusName}同步失败，已跳过: ${error.message}`);
+      }
+    }
+
+    // 优惠码只保存每日指标 amount，不保存环比或 pastValues。
+    try {
+      const startTime = new Date(dateStr + 'T00:00:00+08:00').getTime();
+      const endTime = startTime + 24 * 60 * 60 * 1000;
+      const promoValues = await tab.view.webContents.executeJavaScript(`
+        (async () => {
+          try {
+            const response = await fetch('/gateway/qrcode/b/promocode/queryPromoCodeKPIsV2?yodaReady=h5&csecplatform=4&csecversion=4.3.0', {
+              method: 'POST', credentials: 'include', signal: AbortSignal.timeout(15000),
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(${JSON.stringify({ codeType: 0, startTime, endTime, dpShopId: shopId })})
+            });
+            if (!response.ok) return null;
+            const json = await response.json();
+            if (json.code !== 200 || !Array.isArray(json.data?.promoDateOverview)) return null;
+            const values = {};
+            for (const group of json.data.promoDateOverview) {
+              if (!Array.isArray(group?.modelDateOverview)) continue;
+              for (const item of group.modelDateOverview) {
+                if (item && [1, 2, 3, 7, 8, 9].includes(item.code) &&
+                    item.amount !== null && item.amount !== '' && Number.isFinite(Number(item.amount))) {
+                  values[item.code] = Number(item.amount);
+                }
+              }
+            }
+            return Object.keys(values).length ? values : null;
+          } catch (_) { return null; }
+        })()
+      `);
+      if (promoValues) metricService.savePromoMetrics({ shopId, shopName: displayName, date: dateStr, values: promoValues });
+      else errorMessages.push(`[${displayName}] 优惠码数据未获取，保留已有记录`);
+    } catch (error) {
+      errorMessages.push(`[${displayName}] 优惠码同步失败，已跳过: ${error.message}`);
+    }
+
+    // 话单按门店统计一次，与经营数据平台无关；仅从页面返回总数。
+    try {
+      const callTotal = await tab.view.webContents.executeJavaScript(`
+        (async () => {
+          try {
+            const response = await fetch('/api/dzphone/vn/merchant/pc/querycallrecordlist?yodaReady=h5&csecplatform=4&csecversion=4.3.0', {
+              method: 'POST', signal: AbortSignal.timeout(15000), credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(${JSON.stringify({ shopId, pageNo: 1, pageSize: 20,
+                virtualNum: null, aNum: null, beginTime: dateStr + ' 00:00:00', endTime: dateStr + ' 23:59:59' })})
+            });
+            if (!response.ok) return null;
+            const json = await response.json();
+            const total = json?.content?.totalCount;
+            return json.success === true && json.code === 200 && Number.isSafeInteger(total) && total >= 0 ? total : null;
+          } catch (_) { return null; }
+        })()
+      `);
+      if (callTotal !== null) {
+        metricService.saveCallTotal({ shopId, shopName: displayName, date: dateStr, total: callTotal });
+      } else {
+        errorMessages.push(`[${displayName}] 虚拟号话单未获取，已有统计保留`);
+      }
+    } catch (error) {
+      errorMessages.push(`[${displayName}] 虚拟号话单同步失败: ${error.message}`);
+    }
+
     for (const platformVal of [1, 2]) {
+      if (abortRangeSync) break;
       const platformName = platformVal === 1 ? '点评' : '美团';
+      try {
+
+      // 退款单独采集，overview 无数据也不影响退款统计。
+      try {
+        const tradeBody = new URLSearchParams({ source: '1', device: 'pc', date: dateParam,
+          platform: String(platformVal), pageType: 'v5Trade', optionType: 'v5Trade',
+          shopIds: String(shopId), excludeShopIds: '', cityId: '',
+          prdIds: '1,2,3,4,5,6,11,12,13,14,15,16,17,18,19,20',
+          spuId: '', pageNum: '', pageSize: '', sign: '', fromPage: '', timeStamp: String(Date.now()) }).toString();
+        const refund = await tab.view.webContents.executeJavaScript(`
+          (async () => {
+            try {
+              const response = await fetch('/mda/v5/trade?yodaReady=h5&csecplatform=4&csecversion=4.3.0', {
+                method: 'POST', credentials: 'include', signal: AbortSignal.timeout(15000),
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: ${JSON.stringify(tradeBody)}
+              });
+              if (!response.ok) return null;
+              const json = await response.json();
+              if (!json.success || !Array.isArray(json.data)) return null;
+              const items = json.data.find(c => c?.componentId === 'tradeOptionSummaryPC')?.body;
+              if (!Array.isArray(items)) return null;
+              const read = name => {
+                const raw = items.find(it => it?.name === name)?.value;
+                if (raw == null || String(raw).trim() === '' || String(raw).trim() === '--') return null;
+                const text = String(raw).replace(/[￥¥,元张\\s]/g, '');
+                if (!text) return null;
+                const num = Number(text);
+                return Number.isFinite(num) && num >= 0 ? num : null;
+              };
+              const coupons = read('退款券数'), amount = read('退款金额（原价）');
+              return coupons === null && amount === null ? null : { coupons, amount };
+            } catch (_) { return null; }
+          })()
+        `);
+        if (refund) metricService.saveRefundMetrics({ shopId, platform: platformName, date: dateStr, ...refund });
+        else errorMessages.push(`[${displayName} - ${platformName}] 退款数据未获取，保留已有记录`);
+      } catch (error) {
+        errorMessages.push(`[${displayName} - ${platformName}] 退款同步失败，已跳过: ${error.message}`);
+      }
 
       // 延迟 2s 防频控
       await new Promise(r => setTimeout(r, 2000));
 
-      mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode: 'analysis', text: `📡 [${item.api.shopName}] 拉取${platformName}昨日经营数据...` });
-      console.log(`[数据分析] 正在拉取门店 [${displayName}] 平台: ${platformName} (shopId: ${shopId})`);
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode: 'analysis', text: `📡 [${item.api.shopName}] 拉取${platformName} (${dateStr}) 经营数据...` });
+      console.log(`[数据分析] 正在拉取门店 [${displayName}] 平台: ${platformName} 日期: ${dateStr} (shopId: ${shopId})`);
 
       const requestBody = `source=1&device=pc&date=${encodeURIComponent(dateParam)}&platform=${platformVal}&pageType=v5Home&optionType=v5Home&shopIds=${shopId}`;
 
       let mdaData = null;
+      let overviewResponse = null;
       try {
-        mdaData = await tab.view.webContents.executeJavaScript(`
+        overviewResponse = await tab.view.webContents.executeJavaScript(`
           (async function() {
             try {
               const res = await fetch('/mda/v5/overview', {
-                method: 'POST',
+                method: 'POST', signal: AbortSignal.timeout(15000),
                 headers: {
                   'Content-Type': 'application/x-www-form-urlencoded'
                 },
                 body: '${requestBody}'
               });
+              if (!res.ok) return null;
               const json = await res.json();
               if (json && json.success) {
-                return json.data;
+                return json;
               }
             } catch (e) {
               console.error('[数据分析 API] 错误:', e.message);
@@ -1049,8 +1179,23 @@ async function executeDataAnalysis(tab) {
         console.error(`[数据分析] 调用 ${displayName} (${platformName}) overview 接口失败:`, e.message);
       }
 
-      if (!mdaData) {
-        console.log(`[数据分析] [${displayName}] [${platformName}] 接口返回空数据或调用失败，跳过`);
+      if (overviewResponse) {
+        try {
+          metricService.saveDetails({ shopId, shopName: displayName, platform: platformName,
+            date: dateStr, requestBody, response: overviewResponse });
+        } catch (error) {
+          errorMessages.push(`[${displayName} - ${platformName}] 明细保存失败: ${error.message}`);
+          continue;
+        }
+        mdaData = overviewResponse.data;
+      }
+
+      if (!Array.isArray(mdaData) || !mdaData.some(component =>
+        component && ['trafficSummaryLineTrade', 'salesTabGraph', 'tradeTabGraph', 'reviewSummaryPC', 'starSummaryPC'].includes(component.componentId) &&
+        Array.isArray(component.body) && component.body.some(it => it && it.value != null && String(it.value).trim() !== '' && Number.isFinite(parseFloat(String(it.value).replace(/,/g, ''))))
+      )) {
+        skippedCount++;
+        console.log(`[数据分析] [${displayName}] [${platformName}] (${dateStr}) 无可用经营数据或接口调用失败，跳过并保留已有记录`);
         continue;
       }
 
@@ -1069,6 +1214,7 @@ async function executeDataAnalysis(tab) {
       let badReplyRate = 0;
 
       for (const component of mdaData) {
+        if (!component) continue;
         const body = component.body;
         if (!body) continue;
 
@@ -1133,107 +1279,312 @@ async function executeDataAnalysis(tab) {
         }
       }
 
-      // 组装多维表格 values
-      const values = {};
-      if (fieldIdDate) values[fieldIdDate] = dateTimestampStr;
-      if (fieldIdShop) values[fieldIdShop] = [{ "text": displayName }];
-      if (fieldIdPlatform) values[fieldIdPlatform] = [{ "text": platformName }];
-      if (fieldIdExposure) values[fieldIdExposure] = exposure;
-      if (fieldIdVisits) values[fieldIdVisits] = visits;
-      if (fieldIdOrders) values[fieldIdOrders] = orders;
-      if (fieldIdOrderAmount) values[fieldIdOrderAmount] = orderAmount;
-      if (fieldIdOrderCoupons) values[fieldIdOrderCoupons] = orderCoupons;
-      if (fieldIdVerifyAmount) values[fieldIdVerifyAmount] = verifyAmount;
-      if (fieldIdVerifyCoupons) values[fieldIdVerifyCoupons] = verifyCoupons;
-      if (fieldIdStar) values[fieldIdStar] = star;
-      if (fieldIdNewReviews) values[fieldIdNewReviews] = newReviews;
-      if (fieldIdNewBadReviews) values[fieldIdNewBadReviews] = newBadReviews;
-      if (fieldIdBadReplyRate) values[fieldIdBadReplyRate] = badReplyRate;
-
-      const payloadBody = {
-        "add_records": [
-          {
-            "values": values
-          }
-        ]
-      };
-
-      console.log(`[数据分析] 准备上报多维表格数据 (${platformName}):`, JSON.stringify(payloadBody));
-
-      if (tencentWebhook) {
-        try {
-          const sendWebhookPromise = new Promise((resolve, reject) => {
-            const { net } = require('electron');
-            const request = net.request({
-              method: 'POST',
-              url: tencentWebhook,
-              headers: {
-                'Content-Type': 'application/json; charset=utf-8'
-              }
-            });
-
-            request.on('response', (response) => {
-              let chunks = [];
-              response.on('data', (chunk) => {
-                chunks.push(chunk);
-              });
-              response.on('end', () => {
-                const bodyStr = Buffer.concat(chunks).toString('utf-8');
-                try {
-                  const resData = JSON.parse(bodyStr);
-                  if (resData.errcode === 0) {
-                    resolve(resData);
-                  } else {
-                    reject(new Error(`企微错误: ${resData.errmsg} (code: ${resData.errcode})`));
-                  }
-                } catch (e) {
-                  reject(new Error(`解析响应 JSON 失败: ${bodyStr}`));
-                }
-              });
-            });
-
-            request.on('error', (err) => {
-              reject(err);
-            });
-
-            request.write(JSON.stringify(payloadBody));
-            request.end();
-          });
-
-          await sendWebhookPromise;
-          successCount++;
-          console.log(`[数据分析] [${displayName}] [${platformName}] 腾讯多维表格数据写入成功`);
-        } catch (webhookErr) {
-          console.error(`[数据分析] [${displayName}] [${platformName}] 腾讯 Webhook 发送失败:`, webhookErr.message);
-          errorMessages.push(`[${displayName} - ${platformName}] 同步失败: ${webhookErr.message}`);
-        }
-      } else {
+      // 保存到本地 SQLite 数据库
+      try {
+        metricService.upsert({
+          shop_id: String(shopId),
+          shop_name: displayName,
+          platform: platformName,
+          stat_date: dateStr,
+          exposure,
+          visits,
+          orders,
+          order_amount: orderAmount,
+          order_coupons: orderCoupons,
+          verify_uv: verifyUv,
+          verify_amount: verifyAmount,
+          verify_coupons: verifyCoupons,
+          star,
+          new_reviews: newReviews,
+          new_bad_reviews: newBadReviews,
+          bad_reply_rate: badReplyRate
+        });
         successCount++;
+        console.log(`[数据分析] [${displayName}] [${platformName}] (${dateStr}) 经营数据已成功保存至本地数据库`);
+      } catch (dbErr) {
+        console.error(`[数据分析] [${displayName}] [${platformName}] 本地数据库保存失败:`, dbErr.message);
+        errorMessages.push(`[${displayName} - ${platformName}] 本地保存失败: ${dbErr.message}`);
+      }
+      } catch (error) {
+        errorMessages.push(`[${displayName} - ${platformName}] 处理失败，已跳过: ${error.message}`);
+        console.error('[数据分析] 单个平台处理失败，继续后续任务:', error.message);
       }
     }
-    detailMessages.push(displayName);
   }
 
-  let finalMsg = `已成功抓取并分析 ${matchedShops.length} 个门店昨日的经营客流与评价数据`;
-  if (tencentWebhook) {
-    if (errorMessages.length > 0) {
-      finalMsg += `，部分同步失败，错误: ${errorMessages.join('; ')}`;
-    } else {
-      finalMsg += `，并自动同步至腾讯智能多维表格。`;
-    }
-  } else {
-    finalMsg += `，但未配置腾讯智能表格 Webhook，已在主进程日志打印数据详情。`;
+  let finalMsg = `已将 ${successCount} 条门店平台经营数据（${dateStr}）保存至本地 SQLite 数据库`;
+  if (skippedCount > 0) finalMsg += `，已跳过 ${skippedCount} 条无数据或接口异常的门店平台记录`;
+  if (abortRangeSync) {
+    finalMsg += '（同步已中止）';
+  }
+  if (errorMessages.length > 0) {
+    finalMsg += `（部分数据未保存: ${errorMessages.join('; ')}）`;
   }
 
   return {
-    success: errorMessages.length === 0,
-    message: finalMsg
+    success: !abortRangeSync && errorMessages.length === 0,
+    skippedCount,
+    message: finalMsg,
+    date: dateStr
   };
 }
 
-// 数据分析任务
-ipcMain.handle('run-data-analysis', async () => {
-  const activeTab = [...tabs.values()].find(t => t.active) || [...tabs.values()][0];
-  return await executeDataAnalysis(activeTab);
+// 同步开始时固定标签页集合，各标签页并行，单个失败不影响其他标签页。
+async function executeAllTabsDataAnalysis(syncTabs, date) {
+  const results = await Promise.all(syncTabs.map(async (tab, index) => {
+    try {
+      return { ...await executeDataAnalysis(tab, date), tab: index + 1 };
+    } catch (error) {
+      return { success: false, tab: index + 1, message: error.message };
+    }
+  }));
+  return {
+    success: results.every(result => result.success),
+    date,
+    skippedCount: results.reduce((sum, result) => sum + (result.skippedCount || 0), 0),
+    results,
+    message: results.map(result => `[Tab ${result.tab}] ${result.message}`).join('\n')
+  };
+}
+
+// 数据分析任务（支持传入指定日期）
+ipcMain.handle('run-data-analysis', async (event, customDateStr = null) => {
+  if (isSingleSyncing || isRangeSyncing) {
+    return { success: false, message: '已有同步任务正在进行中，请稍候' };
+  }
+  const syncTabs = [...tabs.values()];
+  if (!syncTabs.length) {
+    return { success: false, message: '未找到可用标签页，请先打开并登录点评商户后台' };
+  }
+  isSingleSyncing = true;
+  abortRangeSync = false;
+  try {
+    return await executeAllTabsDataAnalysis(syncTabs, customDateStr);
+  } finally {
+    isSingleSyncing = false;
+  }
 });
 
+// 批量按天同步经营数据入本地
+ipcMain.handle('sync-date-range', async (event, { startDate, endDate }) => {
+  if (isRangeSyncing || isSingleSyncing) {
+    return { success: false, message: '已有同步任务正在进行中，请稍候' };
+  }
+
+  const syncTabs = [...tabs.values()];
+  if (!syncTabs.length) {
+    return { success: false, message: '未找到可用标签页，请先打开并登录点评商户后台' };
+  }
+
+  const start = new Date(startDate + 'T12:00:00');
+  const end = new Date(endDate + 'T12:00:00');
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    return { success: false, message: '无效的起止日期范围' };
+  }
+
+  const dates = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    dates.push(d.toISOString().split('T')[0]);
+  }
+
+  if (dates.length > 90) {
+    return { success: false, message: '单次最多支持批量同步 90 天数据，以防商户后台接口频控' };
+  }
+
+  isRangeSyncing = true;
+  abortRangeSync = false;
+
+  let successDays = 0;
+  let failedDays = 0;
+  const errorDetails = [];
+
+  try {
+    for (let i = 0; i < dates.length; i++) {
+      if (abortRangeSync) {
+        console.log('[批量按天同步] 用户中止了同步');
+        break;
+      }
+
+      const currentDate = dates[i];
+      const progressPayload = {
+        current: i + 1,
+        total: dates.length,
+        date: currentDate,
+        percent: Math.round(((i + 1) / dates.length) * 100),
+        message: `正在按天同步 [${i + 1}/${dates.length}]: ${currentDate}（${syncTabs.length} 个 Tab 并行）...`
+      };
+
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('sync-range-progress', progressPayload);
+      }
+      if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+        dashboardWindow.webContents.send('sync-range-progress', progressPayload);
+      }
+
+      let dayResult;
+      try {
+        dayResult = await executeAllTabsDataAnalysis(syncTabs, currentDate);
+      } catch (error) {
+        dayResult = { success: false, message: `当日处理失败，继续后续日期: ${error.message}` };
+        console.error('[批量按天同步]', dayResult.message);
+      }
+      if (dayResult.success) {
+        successDays++;
+      } else {
+        failedDays++;
+        errorDetails.push(`${currentDate}: ${dayResult.message}`);
+      }
+
+      // 每天之间增加 1.5s 缓冲以防商户后台频控
+      if (i < dates.length - 1 && !abortRangeSync) {
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+
+    const wasAborted = abortRangeSync;
+    const finalMsg = wasAborted
+      ? `已停止按天同步。已完成 ${successDays} 天入库，未完成 ${dates.length - successDays} 天`
+      : `按天同步完成！已成功将 ${successDays} 天经营数据保存至本地数据库${failedDays > 0 ? `（${failedDays} 天拉取失败）` : ''}`;
+
+    return {
+      success: successDays > 0,
+      aborted: wasAborted,
+      totalDays: dates.length,
+      successDays,
+      failedDays,
+      errorDetails,
+      message: finalMsg
+    };
+  } finally {
+    isRangeSyncing = false;
+    abortRangeSync = false;
+  }
+});
+
+// 停止批量按天同步
+ipcMain.handle('abort-sync-date-range', () => {
+  if (isRangeSyncing) {
+    abortRangeSync = true;
+    return { success: true, message: '正在停止同步任务...' };
+  }
+  return { success: false, message: '当前没有正在执行的按天同步任务' };
+});
+
+// ========== 经营数据看板 IPC ==========
+
+// 打开数据看板窗口
+ipcMain.handle('open-dashboard', (event, options = {}) => {
+  const openSync = options && options.openSync;
+
+  if (dashboardWindow) {
+    dashboardWindow.focus();
+    if (openSync) {
+      dashboardWindow.webContents.send('open-sync-modal');
+    }
+    return;
+  }
+
+  dashboardWindow = new BrowserWindow({
+    width: 1320,
+    height: 880,
+    minWidth: 1020,
+    minHeight: 680,
+    title: '门店经营数据看板 (日报 / 周报 / 月报)',
+    icon: path.join(__dirname, 'build/icon.png'),
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  });
+
+  dashboardWindow.loadFile('dashboard.html');
+
+  if (openSync) {
+    dashboardWindow.webContents.on('did-finish-load', () => {
+      if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+        dashboardWindow.webContents.send('open-sync-modal');
+      }
+    });
+  }
+
+  dashboardWindow.on('closed', () => {
+    dashboardWindow = null;
+  });
+});
+
+// 关闭数据看板窗口
+ipcMain.handle('close-dashboard', () => {
+  if (dashboardWindow) {
+    dashboardWindow.close();
+  }
+});
+
+// 查询日报数据
+ipcMain.handle('metrics-get-daily', async (event, { date, shopName, platform }) => {
+  return metricService.getDailyData({ date, shopName, platform });
+});
+
+// 查询周报数据
+ipcMain.handle('metrics-get-weekly', async (event, { startDate, endDate, shopName, platform }) => {
+  return metricService.getWeeklyData({ startDate, endDate, shopName, platform });
+});
+
+// 查询月报数据
+ipcMain.handle('metrics-get-monthly', async (event, { yearMonth, shopName, platform }) => {
+  return metricService.getMonthlyData({ yearMonth, shopName, platform });
+});
+
+// 查询趋势数据
+ipcMain.handle('metrics-get-trend', async (event, { startDate, endDate, shopName, platform }) => {
+  return metricService.getTrendData({ startDate, endDate, shopName, platform });
+});
+
+// 获取门店列表
+ipcMain.handle('metrics-get-shops', async () => {
+  return metricService.getDistinctShops();
+});
+
+// 获取有数据的日期列表
+ipcMain.handle('metrics-get-dates', async () => {
+  return metricService.getAvailableDates();
+});
+
+// 生成演示数据
+ipcMain.handle('metrics-generate-mock', async (event, days = 14) => {
+  return metricService.generateMockData(days);
+});
+
+// 清除演示数据
+ipcMain.handle('metrics-clear-mock', async () => {
+  return metricService.clearMockData();
+});
+
+// 导出 CSV 文件
+ipcMain.handle('metrics-export-csv', async (event, { defaultFilename = '经营数据报表.csv', content = '' }) => {
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: '导出经营报表',
+      defaultPath: defaultFilename,
+      filters: [{ name: 'CSV 表格', extensions: ['csv'] }]
+    });
+
+    if (canceled || !filePath) return { canceled: true };
+
+    const bom = '\uFEFF';
+    fs.writeFileSync(filePath, bom + content, 'utf8');
+    return { success: true, filePath };
+  } catch (err) {
+    console.error('Export CSV Error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+
+// 不接受平台参数：话单为门店维度，避免平台重复累计。
+ipcMain.handle('metrics-get-call-totals', (event, { startDate, endDate, shopName }) => {
+  return metricService.getCallTotals({ startDate, endDate, shopName });
+});
+
+ipcMain.handle('metrics-get-promo', (event, { startDate, endDate, shopName }) => {
+  return metricService.getPromoMetrics({ startDate, endDate, shopName });
+});

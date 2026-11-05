@@ -1,3 +1,11 @@
 node_modules/
 dist/
 .DS_Store
+userData/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Generated local PDF verification artifacts
+tmp/
