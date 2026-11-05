@@ -39,6 +39,12 @@ function Trend({bins,metric,color='#1677ff',height=260}) {
   const option={animationDuration:250,aria:{enabled:true},color:[color],grid:{left:12,right:18,top:26,bottom:10,containLabel:true},tooltip:{trigger:'axis',renderMode:'richText',valueFormatter:v=>currency?money(v):number(v)},xAxis:{type:'category',data:bins.map(b=>b.label),axisLine:{lineStyle:{color:'#d9e1eb'}},axisLabel:{color:'#64748b',fontSize:12}},yAxis:{type:'value',axisLabel:{color:'#64748b'},splitLine:{lineStyle:{color:'#edf1f6'}}},series:[{name:currency?'金额（元）':metric.includes('coupons')?'券数（张）':metric==='verify_uv'?'核销人次':'人数',type:'line',smooth:false,connectNulls:false,symbolSize:7,lineStyle:{width:3},areaStyle:{color,opacity:.04},data:bins.map(b=>b[metric]??null)}]};
   return <Chart option={option} height={height}/>;
 }
+export const combinedTrendSeries=[['order_amount','下单金额'],['verify_amount','核销金额'],['refund_amount','退款金额'],['exposure','曝光人数'],['visits','访问人数'],['orders','下单人数']];
+function ReportTrend({bins,series=combinedTrendSeries,partial=false,height=240,interactiveLegend=true}) {
+ const data=bins||[],currency=series.some(([key])=>key.includes('amount'));
+ const option={animation:false,aria:{enabled:true},color:['#c29b00','#1677ff','#cf1322','#722ed1','#13a8a8','#389e0d'],legend:{selectedMode:interactiveLegend,top:0,left:'center',textStyle:{fontSize:12,color:'#344256'}},grid:{left:12,right:18,top:series.length>6?(document.body.dataset.page==='print'?180:105):70,bottom:12,containLabel:true},tooltip:{trigger:'axis',renderMode:'richText'},xAxis:{type:'category',data:data.map((bin,i)=>bin.label+(partial&&i===data.length-1?'（未结束）':'')),axisLabel:{fontSize:11,color:'#64748b',hideOverlap:true},axisLine:{lineStyle:{color:'#d9e1eb'}}},yAxis:currency&&series.some(([key])=>!key.includes('amount'))?[{type:'value',name:'金额（元）',axisLabel:{color:'#64748b'},splitLine:{lineStyle:{color:'#edf1f6'}}},{type:'value',name:'数量',axisLabel:{color:'#64748b'},splitLine:{show:false}}]:{type:'value',name:currency?'金额（元）':'数量',axisLabel:{color:'#64748b'},splitLine:{lineStyle:{color:'#edf1f6'}}},series:series.map(([key,name])=>({name,type:'line',itemStyle:{color:({order_amount:'#c29b00',verify_amount:'#1677ff',refund_amount:'#cf1322',exposure:'#722ed1',visits:'#13a8a8',orders:'#389e0d',order_coupons:'#d46b08',verify_coupons:'#096dd9',refund_coupons:'#c41d7f',verify_uv:'#08979c'})[key]},yAxisIndex:currency&&series.some(([k])=>!k.includes('amount'))&&!key.includes('amount')?1:0,smooth:false,connectNulls:false,symbolSize:6,lineStyle:{width:2},data:data.map(bin=>bin[key]??null)}))};
+ return <Chart option={option} height={height}/>;
+}
 function numericColumn(title,key,options={}) {
   return {title,dataIndex:key,key,width:key.includes('amount')?165:120,align:'right',sorter:(a,b)=>{const av=options.value?options.value(a):a[key],bv=options.value?options.value(b):b[key];return (Number(av)||0)-(Number(bv)||0)},render:(v,row)=>{const val=options.value?options.value(row):v;return <span className={key.includes('amount')?'report-amount':''}>{options.rate?percent(val):key.includes('amount')?money(val):number(val)}</span>}};
 }
@@ -95,4 +101,4 @@ function AIReport({text,status='empty'}) {
 }
 
 
-export { Details, Stores, Funnel, Trend, AIReport };
+export { Details, Stores, Funnel, Trend, ReportTrend, AIReport };

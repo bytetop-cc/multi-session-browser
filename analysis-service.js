@@ -92,13 +92,18 @@ function createAnalysisService({ db, safeStorage }) {
     const selected = rows.filter(r=>r.stat_date>=current.start && r.stat_date<=current.end)
     const memberIds = [...new Set(db.prepare(`SELECT DISTINCT shop_id FROM daily_metrics WHERE shop_name IN (${marks}) AND shop_id IS NOT NULL AND shop_id <> ''`).all(...group.shops).map(r=>r.shop_id))]
     const ids = memberIds.length ? memberIds.map(()=>'?').join(',') : "''"
+    function shopMetrics(period) {
     const extras = {}
     for (const [table, keys] of [['shop_promo_metrics',['pay_orders','pay_amount','verify_amount','scan_users','scan_favorites','scan_reviews']],['shop_call_totals',['total']]]) {
-      const data = db.prepare(`SELECT * FROM ${table} WHERE shop_id IN (${ids}) AND stat_date BETWEEN ? AND ?`).all(...memberIds,current.start,current.end)
+      const data = db.prepare(`SELECT * FROM ${table} WHERE shop_id IN (${ids}) AND stat_date BETWEEN ? AND ?`).all(...memberIds,period.start,period.end)
       extras[table] = { synced_records:data.length, ...Object.fromEntries(keys.map(key=>[key,data.some(r=>r[key]!=null)?data.reduce((sum,r)=>sum+(r[key]||0),0):null])) }
     }
-    const booking = db.prepare(`SELECT order_type, SUM(total) total, COUNT(*) synced_records FROM shop_booking_totals WHERE shop_id IN (${ids}) AND stat_date BETWEEN ? AND ? GROUP BY order_type`).all(...memberIds,current.start,current.end)
+    const booking = db.prepare(`SELECT order_type, SUM(total) total, COUNT(*) synced_records FROM shop_booking_totals WHERE shop_id IN (${ids}) AND stat_date BETWEEN ? AND ? GROUP BY order_type`).all(...memberIds,period.start,period.end)
     extras.bookings = booking
+    return extras
+    }
+    const extras=shopMetrics(current)
+    const previousPeriod=bins.at(-2)
     const days = Math.round((date(current.end)-date(current.start))/86400000)+1
     const observed=new Set(selected.map(r=>JSON.stringify([r.shop_name,r.stat_date])))
     const now = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
@@ -111,7 +116,7 @@ function createAnalysisService({ db, safeStorage }) {
       platforms:['美团','点评'].map(platform=>({ platform,...summarize(selected.filter(r=>r.platform===platform)) })),
       trend:bins.map(bin=>({...bin,...summarize(rows.filter(r=>r.stat_date>=bin.start&&r.stat_date<=bin.end))})),
       stores:group.shops.map(shop=>({shop_name:shop,...summarize(selected.filter(r=>r.shop_name===shop)), observed_days:new Set(selected.filter(r=>r.shop_name===shop).map(r=>r.stat_date)).size})),
-      shop_metrics:extras, details:selected }
+      shop_metrics:extras, details:selected, previous_details:rows.filter(r=>r.stat_date>=previousPeriod.start&&r.stat_date<=previousPeriod.end), previous_shop_metrics:shopMetrics(previousPeriod) }
   }
   const history = value => {
     const columns='id,group_id,group_name,mode,anchor,start_date,end_date,model,status,error,retry_of,created_at,finished_at,updated_at'

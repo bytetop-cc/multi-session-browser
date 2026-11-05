@@ -555,7 +555,8 @@
         url: url,
         sessionNum: sessionNum,
         hasBadReview: false,
-        badReviewCount: 0
+        badReviewCount: 0,
+        taskErrors: []
       })
 
       activeTabId = result.tabId
@@ -571,6 +572,8 @@
 
       renderTabs()
       updateAddressBar()
+      const tab=tabs.find(t=>t.id===tabId)
+      if(tab?.taskErrors?.length)await showTabErrors(tab)
     }
 
     // 关闭标签页
@@ -644,9 +647,9 @@
         const displayName = getDisplayName(tab)
         const progressVal = tab.progressText || '空闲'
 
-        // 红点警报（差评）只要 hasBadReview 为 true 就显示
+        // 差评、同步和好评接口错误共用现有红点。
         const alertHtml = tab.hasBadReview
-          ? `<span class="tab-alert" style="position: absolute; right: 28px; top: 12px;" title="${tab.badReviewCount ? '发现差评（' + tab.badReviewCount + '条）' : '发现差评'}"></span>`
+          ? `<span class="tab-alert" style="position: absolute; right: 28px; top: 12px;" title="${tab.taskErrors?.length?'有接口错误，点击标签查看':tab.badReviewCount ? '发现差评（' + tab.badReviewCount + '条）' : '发现差评'}"></span>`
           : ''
 
         if (isEditing) {
@@ -733,6 +736,33 @@
         document.getElementById('tabs').scrollLeft += e.deltaY;
       }
     });
+
+    async function showTabErrors(tab) {
+      if(!tab?.taskErrors?.length)return
+      document.getElementById('badReviewModalTitle').textContent='接口报错 · '+getDisplayName(tab)
+      const body=document.getElementById('badReviewModalBody')
+      body.textContent=''
+      for(const error of tab.taskErrors){
+        const item=document.createElement('p')
+        item.style.whiteSpace='pre-wrap'
+        item.style.overflowWrap='anywhere'
+        item.textContent=`${error.task}${error.date?' · '+error.date:''}\n接口：${error.endpoint}\n原因：${error.message}`
+        body.appendChild(item)
+      }
+      await ipcRenderer.invoke('shell-modal-set',{open:true})
+      document.getElementById('badReviewModal').classList.add('show')
+    }
+    ipcRenderer.on('task-api-error',async (_,error)=>{
+      const tab=tabs.find(t=>t.id===error.tabId)
+      if(!tab)return
+      tab.hasBadReview=true
+      tab.taskErrors=tab.taskErrors||[]
+      const duplicate=tab.taskErrors.some(item=>item.task===error.task&&item.endpoint===error.endpoint&&item.message===error.message&&item.date===error.date)
+      if(!duplicate)tab.taskErrors=[...tab.taskErrors,error].slice(-50)
+      tab.progressText='❌ '+error.task+'接口报错'
+      renderTabs()
+      if(tab.id===activeTabId)await showTabErrors(tab)
+    })
 
     // 监听任务进度实时更新
     ipcRenderer.on('task-progress-update', (event, { tabId, mode, text }) => {
@@ -858,6 +888,8 @@
       if (tab) {
         tab.hasBadReview = false
         tab.badReviewCount = 0
+        tab.taskErrors=[]
+        if(tab.id===activeTabId&&document.getElementById('badReviewModalTitle').textContent.startsWith('接口报错'))closeBadReviewModal()
         tab.progressText = '✅ 差评:无'
         renderTabs()
       }
@@ -1022,6 +1054,7 @@
       tabs.forEach(t => {
         t.progressText = '🔍 正在启动检查...'
         t.hasBadReview = false
+        t.taskErrors=[]
         t.badReviewCount = 0
       })
       renderTabs()
@@ -1184,6 +1217,7 @@
           console.log('[前端] 启动并行回复:', tid, 'runId:', runId)
           const result = await ipcRenderer.invoke('run-good-review-reply', { tabId: tid, runId })
           console.log('[前端] 并行回复返回:', tid, result)
+          if(result?.hasErrors)anyError=true
           
           const tab = tabs.find(t => t.id === tid)
           if (tab && result) {

@@ -23,11 +23,11 @@ function registerAnalysisPdf({ipcMain,BrowserWindow,dialog,service,getWindow}){
    if(args.recordId){const candidate=service.runRecord(args.recordId),snapshot=candidate.snapshot;const shop=snapshot.shop?.name||(snapshot.group?.shops?.length===1?snapshot.group.shops[0]:null)
     if(candidate.status==='success'&&shop===report.shop.name&&candidate.mode===report.mode&&candidate.start_date===report.period.start&&candidate.end_date===report.period.end)record=candidate
    }
-   printWindow=new BrowserWindow({show:false,width:780,height:1100,webPreferences:{nodeIntegration:true,contextIsolation:false,backgroundThrottling:false}})
+   printWindow=new BrowserWindow({show:false,width:420,height:840,webPreferences:{nodeIntegration:true,contextIsolation:false,backgroundThrottling:false}})
    jobs.set(printWindow.webContents.id,{report,record,metric:args.metric||'order_amount',observations:Array.isArray(args.observations)?args.observations.filter(t=>typeof t==='string'):[],exportedAt:new Date().toISOString()})
    await printWindow.loadFile(path.join(__dirname,'report-print.html'))
    await printWindow.webContents.executeJavaScript(`new Promise((resolve,reject)=>{if(window.__pdfReady)return resolve();const timer=setTimeout(()=>{document.removeEventListener('report-pdf-ready',ready);reject(new Error('报告排版超时，请重新导出'))},30000);function ready(){clearTimeout(timer);resolve()}document.addEventListener('report-pdf-ready',ready,{once:true})})`)
-   const pdf=await printWindow.webContents.printToPDF({printBackground:true,pageSize:'A4',preferCSSPageSize:true,margins:{top:.47,bottom:.55,left:.47,right:.47},displayHeaderFooter:true,headerTemplate:'<span></span>',footerTemplate:'<div style="font-family:sans-serif;font-size:9px;color:#64748b;width:100%;text-align:center">门店经营报告 · <span class="pageNumber"></span> / <span class="totalPages"></span></div>'})
+   const pdf=await printWindow.webContents.printToPDF({printBackground:true,pageSize:{width:108000,height:216000},preferCSSPageSize:true,margins:{top:.12,bottom:.2,left:.12,right:.12},displayHeaderFooter:true,headerTemplate:'<span></span>',footerTemplate:'<div style="font-family:sans-serif;font-size:7px;color:#64748b;width:100%;text-align:center">门店经营报告 · <span class="pageNumber"></span> / <span class="totalPages"></span></div>'})
    const target=/\.pdf$/i.test(destination.filePath)?destination.filePath:destination.filePath+'.pdf'
    await fs.writeFile(target,pdf)
    return {success:true,filePath:target}

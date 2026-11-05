@@ -14,6 +14,13 @@ let settingsWindow = null
 let dashboardWindow = null
 let tabCounter = 0
 const tabs = new Map() // tabId -> { view, partition }
+const {createTaskErrorReporter}=require('./task-error-notice');
+const reportTaskError=createTaskErrorReporter({send:notice=>{
+  for(const window of [mainWindow,dashboardWindow]){
+    if(window&&!window.isDestroyed())window.webContents.send('task-api-error',notice);
+  }
+}});
+
 /** 弹窗显示时曾从窗口摘下 BrowserView，关闭时需挂回 */
 let shellModalHidingViews = false
 
@@ -106,7 +113,7 @@ ipcMain.handle('new-tab', (event, url = 'https://e.dianping.com/app/merchant-pla
     hideView(tab.view)
   })
 
-  tabs.set(tabId, { view, partition, active: true })
+  tabs.set(tabId, { id: tabId, view, partition, active: true })
 
   return { tabId, partition }
 })
@@ -432,6 +439,9 @@ function randomSleep(minMs, maxMs) {
 
 async function executeReviewTask(tab, mode, runId) {
   const taskName = mode === 'bad' ? '差评监控' : '好评回复';
+  let currentEndpoint='/gateway/merchant/general/shopinfo';
+  const taskErrors=[];
+  function reportError(endpoint,message){taskErrors.push(message);reportTaskError(tab,{task:taskName,endpoint,message})}
   taskAbortFlags[mode] = false; // 开始前重置中止标志
 
   if (!tab) {
@@ -515,7 +525,8 @@ async function executeReviewTask(tab, mode, runId) {
     console.log(`[${taskName}] 接口返回门店总数:`, apiShopList.length);
     if (apiShopList.length === 0) {
       mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '❌ 门店列表获取失败' });
-      return { message: '无法获取点评商户门店列表，请确保已登录' };
+      reportError(currentEndpoint,'无法获取商户门店列表，请确认登录状态');
+      return { hasErrors:true, message: '无法获取点评商户门店列表，请确保已登录' };
     }
 
     // 2. 匹配本地配置的门店
@@ -574,12 +585,14 @@ async function executeReviewTask(tab, mode, runId) {
         mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: `📡 [${item.api.shopName}] 拉取${platformName}点评...` });
         console.log(`[${taskName}] 拉取平台: ${platformName} (ID: ${platformVal})`);
 
+        currentEndpoint='/gateway/merchant/review/list';
         const reviewData = await tab.view.webContents.executeJavaScript(`
           (async function() {
             // mode === 'bad' 时拉取 4 星以下：差评 tagId: 3 (1-2星) + 中评 tagId: 2 (3星)
             // mode === 'good' 时拉取好评 tagId: 1 (4-5星)
             const tagIds = ${mode === 'bad' ? '[3, 2]' : '[1]'};
             let allDetails = [];
+            const errors = [];
             let totalSize = 0;
             const seenIds = new Set();
             for (const tId of tagIds) {
@@ -613,17 +626,22 @@ async function executeReviewTask(tab, mode, runId) {
                       allDetails.push(item);
                     }
                   }
+                } else {
+                  errors.push('HTTP '+res.status+'，'+(data?.msg||data?.message||('业务码 '+data?.code)));
                 }
               } catch (e) {
+                errors.push(e.message);
                 console.error('[API] 拉取评价异常:', e.message);
               }
               if (tagIds.length > 1) {
                 await new Promise(r => setTimeout(r, 600));
               }
             }
-            return { totalSize, reviewDetails: allDetails };
+            return { totalSize, reviewDetails: allDetails, errors };
           })()
         `);
+
+        for(const error of reviewData?.errors||[])reportError(currentEndpoint,`[${displayName} · ${platformName}] ${error}`);
 
         if (shouldAbort(mode, runId)) {
           mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '已取消' });
@@ -707,6 +725,7 @@ async function executeReviewTask(tab, mode, runId) {
           );
           const templatesBase64 = Buffer.from(JSON.stringify(replyContents)).toString('base64');
 
+          currentEndpoint='/review/app/reply/ajax/reviewreply';
           const replyResult = await tab.view.webContents.executeJavaScript(`
             (async function() {
               const decodeUtf8Base64 = str => decodeURIComponent(escape(atob(str)));
@@ -759,7 +778,7 @@ async function executeReviewTask(tab, mode, runId) {
                   const buffer = await res.arrayBuffer();
                   resText = new TextDecoder('utf-8').decode(buffer);
                   const data = JSON.parse(resText);
-                  if (data && (data.code === 200 || data.success === true)) {
+                  if (res.ok && data && (data.code === 200 || data.success === true)) {
                     successCount++;
                     debugLogs.push({ reviewId, success: true, status: resStatus, text: resText });
                   } else {
@@ -774,6 +793,13 @@ async function executeReviewTask(tab, mode, runId) {
             })()
           `).catch(e => { console.log('好评自动回复异常:', e.message); return { count: 0, error: e.message }; });
 
+          if(replyResult?.error)reportError(currentEndpoint,`[${displayName} · ${platformName}] ${replyResult.error}`);
+          const failedReplies=(replyResult?.debugLogs||[]).filter(log=>!log.success);
+          if(failedReplies.length){
+            const failure=failedReplies[0];let reason=failure.error;
+            if(!reason){try{const data=JSON.parse(failure.text);reason=data.msg||data.message||('业务码 '+data.code)}catch(_){reason='响应不是有效 JSON'}}
+            reportError(currentEndpoint,`[${displayName} · ${platformName}] ${failedReplies.length} 条回复失败，HTTP ${failure.status??'未知'}，${reason}`);
+          }
           console.log(`[好评自动回复] 门店 [${displayName}] (${platformName}) API 回复结果:`, JSON.stringify(replyResult));
           if (replyResult && replyResult.debugLogs) {
             for (const log of replyResult.debugLogs) {
@@ -843,7 +869,7 @@ async function executeReviewTask(tab, mode, runId) {
         } catch (e) {
           console.log('企微机器人推送异常:', e.message);
         }
-      } else {
+      } else if(taskErrors.length===0) {
         mainWindow.webContents.send('bad-review-cleared', { tabId: tab.id });
       }
 
@@ -871,7 +897,8 @@ async function executeReviewTask(tab, mode, runId) {
       });
 
       return {
-        message: `已检查 ${totalShopRuns} 个门店实例，自动回复完成，共回复 ${totalGoodReplies} 条好评`,
+        hasErrors:taskErrors.length>0,
+        message: `已检查 ${totalShopRuns} 个门店实例，共回复 ${totalGoodReplies} 条好评${taskErrors.length?'，部分接口报错，请查看标签页红点提示':''}`,
         count: totalGoodReplies,
         details: goodReplyDetails,
         totalShopRuns: totalShopRuns
@@ -879,13 +906,14 @@ async function executeReviewTask(tab, mode, runId) {
     }
 
   } catch (e) {
+    reportError(currentEndpoint,e.message);
     console.log(`[${taskName}] 执行失败:`, e.message);
     mainWindow.webContents.send('task-progress-update', {
       tabId: tab.id,
       mode,
       text: `❌ 执行失败`
     });
-    return { message: '执行失败: ' + e.message };
+    return { hasErrors:true, message: '执行失败: ' + e.message };
   }
 }
 
@@ -1000,6 +1028,10 @@ async function executeDataAnalysis(tab, customDateStr = null) {
   let successCount = 0;
   let skippedCount = 0;
   let errorMessages = [];
+  function addSyncError(message,endpoint){
+    errorMessages.push(message);
+    reportTaskError(tab,{task:'同步数据',endpoint,message,date:dateStr});
+  }
 
   for (const item of matchedShops) {
     if (abortRangeSync) {
@@ -1031,9 +1063,9 @@ async function executeDataAnalysis(tab, customDateStr = null) {
           })()
         `);
         if (total !== null) metricService.saveBookingTotal({ shopId, date: dateStr, orderType, total });
-        else errorMessages.push(`[${displayName}] 预订${statusName}未获取，保留已有统计`);
+        else addSyncError(`[${displayName}] 预订${statusName}未获取，保留已有统计`, '/trade/order/orderlist.api');
       } catch (error) {
-        errorMessages.push(`[${displayName}] 预订${statusName}同步失败，已跳过: ${error.message}`);
+        addSyncError(`[${displayName}] 预订${statusName}同步失败，已跳过: ${error.message}`, '/trade/order/orderlist.api');
       }
     }
 
@@ -1067,9 +1099,9 @@ async function executeDataAnalysis(tab, customDateStr = null) {
         })()
       `);
       if (promoValues) metricService.savePromoMetrics({ shopId, shopName: displayName, date: dateStr, values: promoValues });
-      else errorMessages.push(`[${displayName}] 优惠码数据未获取，保留已有记录`);
+      else addSyncError(`[${displayName}] 优惠码数据未获取，保留已有记录`, '/gateway/qrcode/b/promocode/queryPromoCodeKPIsV2');
     } catch (error) {
-      errorMessages.push(`[${displayName}] 优惠码同步失败，已跳过: ${error.message}`);
+      addSyncError(`[${displayName}] 优惠码同步失败，已跳过: ${error.message}`, '/gateway/qrcode/b/promocode/queryPromoCodeKPIsV2');
     }
 
     // 话单按门店统计一次，与经营数据平台无关；仅从页面返回总数。
@@ -1093,10 +1125,10 @@ async function executeDataAnalysis(tab, customDateStr = null) {
       if (callTotal !== null) {
         metricService.saveCallTotal({ shopId, shopName: displayName, date: dateStr, total: callTotal });
       } else {
-        errorMessages.push(`[${displayName}] 虚拟号话单未获取，已有统计保留`);
+        addSyncError(`[${displayName}] 虚拟号话单未获取，已有统计保留`, '/api/dzphone/vn/merchant/pc/querycallrecordlist');
       }
     } catch (error) {
-      errorMessages.push(`[${displayName}] 虚拟号话单同步失败: ${error.message}`);
+      addSyncError(`[${displayName}] 虚拟号话单同步失败: ${error.message}`, '/api/dzphone/vn/merchant/pc/querycallrecordlist');
     }
 
     for (const platformVal of [1, 2]) {
@@ -1138,9 +1170,9 @@ async function executeDataAnalysis(tab, customDateStr = null) {
           })()
         `);
         if (refund) metricService.saveRefundMetrics({ shopId, platform: platformName, date: dateStr, ...refund });
-        else errorMessages.push(`[${displayName} - ${platformName}] 退款数据未获取，保留已有记录`);
+        else addSyncError(`[${displayName} - ${platformName}] 退款数据未获取，保留已有记录`, '/mda/v5/trade');
       } catch (error) {
-        errorMessages.push(`[${displayName} - ${platformName}] 退款同步失败，已跳过: ${error.message}`);
+        addSyncError(`[${displayName} - ${platformName}] 退款同步失败，已跳过: ${error.message}`, '/mda/v5/trade');
       }
 
       // 延迟 2s 防频控
@@ -1184,7 +1216,7 @@ async function executeDataAnalysis(tab, customDateStr = null) {
           metricService.saveDetails({ shopId, shopName: displayName, platform: platformName,
             date: dateStr, requestBody, response: overviewResponse });
         } catch (error) {
-          errorMessages.push(`[${displayName} - ${platformName}] 明细保存失败: ${error.message}`);
+          addSyncError(`[${displayName} - ${platformName}] 明细保存失败: ${error.message}`, '/mda/v5/overview');
           continue;
         }
         mdaData = overviewResponse.data;
@@ -1195,6 +1227,7 @@ async function executeDataAnalysis(tab, customDateStr = null) {
         Array.isArray(component.body) && component.body.some(it => it && it.value != null && String(it.value).trim() !== '' && Number.isFinite(parseFloat(String(it.value).replace(/,/g, ''))))
       )) {
         skippedCount++;
+        addSyncError(`[${displayName} · ${platformName}] 经营数据请求失败或响应没有有效指标，已保留已有记录`, '/mda/v5/overview');
         console.log(`[数据分析] [${displayName}] [${platformName}] (${dateStr}) 无可用经营数据或接口调用失败，跳过并保留已有记录`);
         continue;
       }
@@ -1303,10 +1336,10 @@ async function executeDataAnalysis(tab, customDateStr = null) {
         console.log(`[数据分析] [${displayName}] [${platformName}] (${dateStr}) 经营数据已成功保存至本地数据库`);
       } catch (dbErr) {
         console.error(`[数据分析] [${displayName}] [${platformName}] 本地数据库保存失败:`, dbErr.message);
-        errorMessages.push(`[${displayName} - ${platformName}] 本地保存失败: ${dbErr.message}`);
+        addSyncError(`[${displayName} - ${platformName}] 本地保存失败: ${dbErr.message}`, '/mda/v5/overview');
       }
       } catch (error) {
-        errorMessages.push(`[${displayName} - ${platformName}] 处理失败，已跳过: ${error.message}`);
+        addSyncError(`[${displayName} - ${platformName}] 处理失败，已跳过: ${error.message}`, '/mda/v5/overview');
         console.error('[数据分析] 单个平台处理失败，继续后续任务:', error.message);
       }
     }
@@ -1324,18 +1357,22 @@ async function executeDataAnalysis(tab, customDateStr = null) {
   return {
     success: !abortRangeSync && errorMessages.length === 0,
     skippedCount,
+    errorsReported:errorMessages.length>0,
+    savedCount:successCount,
     message: finalMsg,
     date: dateStr
   };
 }
-
 // 同步开始时固定标签页集合，各标签页并行，单个失败不影响其他标签页。
 async function executeAllTabsDataAnalysis(syncTabs, date) {
   const results = await Promise.all(syncTabs.map(async (tab, index) => {
     try {
-      return { ...await executeDataAnalysis(tab, date), tab: index + 1 };
+      const result=await executeDataAnalysis(tab,date);
+      if(!result.success&&!result.errorsReported&&!abortRangeSync)reportTaskError(tab,{task:'同步数据',endpoint:result.endpoint||'/gateway/merchant/general/shopinfo',message:result.message,date});
+      return {...result,tab:index+1,tabId:tab.id};
     } catch (error) {
-      return { success: false, tab: index + 1, message: error.message };
+      reportTaskError(tab,{task:'同步数据',endpoint:'同步任务执行',message:error.message,date});
+      return {success:false,tab:index+1,tabId:tab.id,message:error.message};
     }
   }));
   return {
@@ -1343,6 +1380,7 @@ async function executeAllTabsDataAnalysis(syncTabs, date) {
     date,
     skippedCount: results.reduce((sum, result) => sum + (result.skippedCount || 0), 0),
     results,
+    savedCount:results.reduce((sum,result)=>sum+(result.savedCount||0),0),
     message: results.map(result => `[Tab ${result.tab}] ${result.message}`).join('\n')
   };
 }
@@ -1394,6 +1432,7 @@ ipcMain.handle('sync-date-range', async (event, { startDate, endDate }) => {
   isRangeSyncing = true;
   abortRangeSync = false;
 
+  let savedCount = 0;
   let successDays = 0;
   let failedDays = 0;
   const errorDetails = [];
@@ -1428,6 +1467,7 @@ ipcMain.handle('sync-date-range', async (event, { startDate, endDate }) => {
         dayResult = { success: false, message: `当日处理失败，继续后续日期: ${error.message}` };
         console.error('[批量按天同步]', dayResult.message);
       }
+      savedCount+=dayResult.savedCount||0;
       if (dayResult.success) {
         successDays++;
       } else {
@@ -1447,7 +1487,9 @@ ipcMain.handle('sync-date-range', async (event, { startDate, endDate }) => {
       : `按天同步完成！已成功将 ${successDays} 天经营数据保存至本地数据库${failedDays > 0 ? `（${failedDays} 天拉取失败）` : ''}`;
 
     return {
-      success: successDays > 0,
+      success: successDays > 0 && failedDays === 0 && !wasAborted,
+      hasErrors: failedDays > 0,
+      savedCount,
       aborted: wasAborted,
       totalDays: dates.length,
       successDays,
