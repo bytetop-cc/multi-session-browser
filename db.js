@@ -146,9 +146,9 @@ function initDatabase() {
   migrateRemoveTemplateUseCount()
   purgeTemplatesWithoutShop()
 
-  // 临时设置 wecom_webhook 地址
+  // 仅首次初始化默认地址，保留用户保存的地址或主动清空的配置。
   db.prepare(`
-    INSERT OR REPLACE INTO settings (key, value)
+    INSERT OR IGNORE INTO settings (key, value)
     VALUES ('wecom_webhook', 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=f5dbd97e-eb01-406a-932e-b914b0f2f78a')
   `).run()
 }

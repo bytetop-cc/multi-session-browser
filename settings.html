@@ -308,6 +308,15 @@
     </div>
     <div class="list" id="shopList"></div>
 
+    <div class="section-title" style="margin-top: 32px;">企微消息通知</div>
+    <div style="background: #292b2e; padding: 20px; border-radius: 8px;">
+      <label class="form-label" for="wecomWebhook">企微机器人 Webhook 地址</label>
+      <div style="display: flex; gap: 12px;">
+        <input type="text" class="form-input" id="wecomWebhook" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...">
+        <button class="save-btn" style="white-space: nowrap;" onclick="saveWecomWebhook()">保存企微</button>
+      </div>
+    </div>
+
     <div class="section-title" style="margin-top: 32px;">数据备份与恢复</div>
     <div style="background: #292b2e; padding: 20px; border-radius: 8px; display: flex; gap: 16px;">
       <button class="add-btn" onclick="exportDatabase()">导出所有数据</button>
@@ -376,6 +385,25 @@
     let currentTemplateShopId = null
     let shopTemplates = []
     let editingShopTemplateId = null
+
+    async function loadGlobalSettings() {
+      try {
+        const webhook = await ipcRenderer.invoke('setting-get', 'wecom_webhook')
+        document.getElementById('wecomWebhook').value = webhook || ''
+      } catch (error) {
+        alert('读取企微设置失败: ' + error.message)
+      }
+    }
+
+    async function saveWecomWebhook() {
+      const value = document.getElementById('wecomWebhook').value.trim()
+      try {
+        await ipcRenderer.invoke('setting-set', { key: 'wecom_webhook', value })
+        alert(value ? '保存成功！差评预警会推送到这个企微群。' : '已关闭企微消息推送。')
+      } catch (error) {
+        alert('保存企微设置失败: ' + error.message)
+      }
+    }
 
     // ========== 门店管理 ==========
 
@@ -591,6 +619,7 @@
 
     // 初始化
     loadShops()
+    loadGlobalSettings()
   </script>
 </body>
 </html>
