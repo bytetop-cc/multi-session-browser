@@ -1027,6 +1027,8 @@ async function executeDataAnalysis(tab, customDateStr = null) {
 
   let successCount = 0;
   let skippedCount = 0;
+  let simpleBoardCount = 0;
+  let deniedRefundCount = 0;
   let errorMessages = [];
   function addSyncError(message,endpoint){
     errorMessages.push(message);
@@ -1151,11 +1153,15 @@ async function executeDataAnalysis(tab, customDateStr = null) {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: ${JSON.stringify(tradeBody)}
               });
-              if (!response.ok) return null;
-              const json = await response.json();
-              if (!json.success || !Array.isArray(json.data)) return null;
+              if (response.status === 401) return {_permissionDenied:true};
+              const text=await response.text();
+              let json;try{json=JSON.parse(text)}catch(_){return {_syncError:'HTTP '+response.status+'，返回非 JSON（可能是跳转、拦截或页面响应）'}};
+              const message=String(json?.message||json?.msg||json?.error?.message||'').slice(0,240);
+              if (Number(json?.code ?? json?.errorCode) === 401) return {_permissionDenied:true};
+              if (!response.ok || !json.success) return {_syncError:'HTTP '+response.status+'，业务码 '+String(json?.code??json?.errorCode??'未提供')+(message?'：'+message:'')};
+              if (!Array.isArray(json.data)) return {_syncError:'HTTP '+response.status+'，data 不是组件数组'};
               const items = json.data.find(c => c?.componentId === 'tradeOptionSummaryPC')?.body;
-              if (!Array.isArray(items)) return null;
+              if (!Array.isArray(items)) return {_syncError:'未找到退款组件 tradeOptionSummaryPC；返回组件：'+json.data.map(c=>c?.componentId||'?').join(',').slice(0,400)};
               const read = name => {
                 const raw = items.find(it => it?.name === name)?.value;
                 if (raw == null || String(raw).trim() === '' || String(raw).trim() === '--') return null;
@@ -1165,12 +1171,15 @@ async function executeDataAnalysis(tab, customDateStr = null) {
                 return Number.isFinite(num) && num >= 0 ? num : null;
               };
               const coupons = read('退款券数'), amount = read('退款金额（原价）');
-              return coupons === null && amount === null ? null : { coupons, amount };
-            } catch (_) { return null; }
+              return coupons === null && amount === null ? {_syncError:'退款组件没有有效数值；返回指标：'+items.map(it=>String(it?.name||it?.variable||'?')).join(',').slice(0,400)} : { coupons, amount };
+            } catch (error) { return {_syncError:error.name+': '+error.message}; }
           })()
         `);
-        if (refund) metricService.saveRefundMetrics({ shopId, platform: platformName, date: dateStr, ...refund });
-        else addSyncError(`[${displayName} - ${platformName}] 退款数据未获取，保留已有记录`, '/mda/v5/trade');
+        if (refund?._permissionDenied) {
+          deniedRefundCount++;
+          console.log('[数据分析] 退款接口无权限，保留已有退款记录；简版看板不提供退款指标');
+        } else if (refund && !refund._syncError) metricService.saveRefundMetrics({ shopId, platform: platformName, date: dateStr, ...refund });
+        else addSyncError(`[${displayName} - ${platformName}] 退款数据未获取（${refund?._syncError||'未返回结果'}），保留已有记录`, '/mda/v5/trade');
       } catch (error) {
         addSyncError(`[${displayName} - ${platformName}] 退款同步失败，已跳过: ${error.message}`, '/mda/v5/trade');
       }
@@ -1185,33 +1194,69 @@ async function executeDataAnalysis(tab, customDateStr = null) {
 
       let mdaData = null;
       let overviewResponse = null;
+      let overviewFailure = '';
       try {
         overviewResponse = await tab.view.webContents.executeJavaScript(`
           (async function() {
             try {
               const res = await fetch('/mda/v5/overview', {
-                method: 'POST', signal: AbortSignal.timeout(15000),
+                method: 'POST', credentials:'include', signal: AbortSignal.timeout(15000),
                 headers: {
                   'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: '${requestBody}'
+                body: ${JSON.stringify(requestBody)}
               });
-              if (!res.ok) return null;
-              const json = await res.json();
-              if (json && json.success) {
-                return json;
-              }
-            } catch (e) {
-              console.error('[数据分析 API] 错误:', e.message);
-            }
-            return null;
+              if (res.status === 401) return {_permissionDenied:true};
+              const text=await res.text();
+              let json;try{json=JSON.parse(text)}catch(_){return {_syncError:'HTTP '+res.status+'，返回非 JSON（可能是跳转、拦截或页面响应）'}};
+              const message=String(json?.message||json?.msg||json?.error?.message||'').slice(0,240);
+              if (Number(json?.code ?? json?.errorCode) === 401) return {_permissionDenied:true};
+              if (!res.ok || !json?.success) return {_syncError:'HTTP '+res.status+'，业务码 '+String(json?.code??json?.errorCode??'未提供')+(message?'：'+message:'')};
+              return json;
+            } catch (e) { return {_syncError:e.name+': '+e.message}; }
           })()
         `);
       } catch (e) {
+        overviewFailure=e.message;
         console.error(`[数据分析] 调用 ${displayName} (${platformName}) overview 接口失败:`, e.message);
       }
 
-      if (overviewResponse) {
+      if (overviewResponse?._permissionDenied) {
+        const endpoint = '/gateway/adviser/data';
+        const simpleQuery = new URLSearchParams({ source: '1', device: 'pc', date: dateParam,
+          platform: String(platformVal), pageType: 'simpleDataBoard', optionType: '',
+          shopIds: String(shopId), excludeShopIds: '', cityId: '', prdIds: '', spuId: '',
+          pageNum: '', pageSize: '', sign: '', fromPage: '',
+          yodaReady: 'h5', csecplatform: '4', csecversion: '4.3.0' }).toString();
+        try {
+          const simple = await tab.view.webContents.executeJavaScript(
+            '(async () => { try {' +
+            'const res = await fetch(' + JSON.stringify(endpoint + '?' + simpleQuery) +
+            ",{credentials:'include',signal:AbortSignal.timeout(15000)});" +
+            "if (!res.ok) return {_syncError:'HTTP '+res.status};" +
+            'const json = await res.json();' +
+            'if (json.success !== true || Number(json.code) !== 200 || !Array.isArray(json.data)) ' +
+            "return {_syncError:'业务码 '+String(json.code)+'：'+String(json.msg||json.message||'简版看板返回异常').slice(0,240)};" +
+            "return json; } catch(e) {return {_syncError:e.name+': '+e.message};} })()"
+          );
+          if (!simple || simple._syncError) throw new Error(simple?._syncError || '未返回结果');
+          const metrics = require('./simple-board').parseSimpleBoard(simple, platformName);
+          if (!Object.keys(metrics).length) throw new Error('简版看板没有有效经营指标');
+          metricService.saveDetails({ shopId, shopName: displayName, platform: platformName,
+            date: dateStr, requestBody: simpleQuery, response: simple, endpoint });
+          metricService.upsert({ shop_id: String(shopId), shop_name: displayName,
+            platform: platformName, stat_date: dateStr, ...metrics }, { preserveMissing: true });
+          successCount++;
+          simpleBoardCount++;
+        } catch (error) {
+          skippedCount++;
+          addSyncError('[' + displayName + ' · ' + platformName + '] 简版看板同步失败：' + error.message + '，保留已有记录', endpoint);
+        }
+        continue;
+      }
+
+      if(overviewResponse?._syncError)overviewFailure=overviewResponse._syncError;
+      if (overviewResponse && !overviewResponse._syncError) {
         try {
           metricService.saveDetails({ shopId, shopName: displayName, platform: platformName,
             date: dateStr, requestBody, response: overviewResponse });
@@ -1227,7 +1272,7 @@ async function executeDataAnalysis(tab, customDateStr = null) {
         Array.isArray(component.body) && component.body.some(it => it && it.value != null && String(it.value).trim() !== '' && Number.isFinite(parseFloat(String(it.value).replace(/,/g, ''))))
       )) {
         skippedCount++;
-        addSyncError(`[${displayName} · ${platformName}] 经营数据请求失败或响应没有有效指标，已保留已有记录`, '/mda/v5/overview');
+        addSyncError(`[${displayName} · ${platformName}] 经营数据未获取（${overviewFailure||'有效指标缺失；返回组件：'+(Array.isArray(mdaData)?mdaData.map(c=>c?.componentId||'?').join(','):'data 非组件数组')}），已保留已有记录`, '/mda/v5/overview');
         console.log(`[数据分析] [${displayName}] [${platformName}] (${dateStr}) 无可用经营数据或接口调用失败，跳过并保留已有记录`);
         continue;
       }
@@ -1347,6 +1392,8 @@ async function executeDataAnalysis(tab, customDateStr = null) {
 
   let finalMsg = `已将 ${successCount} 条门店平台经营数据（${dateStr}）保存至本地 SQLite 数据库`;
   if (skippedCount > 0) finalMsg += `，已跳过 ${skippedCount} 条无数据或接口异常的门店平台记录`;
+  if (simpleBoardCount > 0) finalMsg += '（其中 ' + simpleBoardCount + ' 条使用简版看板，未提供的指标保留原记录）';
+  if (deniedRefundCount > 0) finalMsg += '（' + deniedRefundCount + ' 条退款数据无权限，已保留原记录）';
   if (abortRangeSync) {
     finalMsg += '（同步已中止）';
   }

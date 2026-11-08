@@ -29,6 +29,7 @@
     },
     "files": [
       "main.js",
+      "simple-board.js",
       "task-error-notice.js",
       "db.js",
       "reply-template-rotation.js",

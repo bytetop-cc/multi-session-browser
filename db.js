@@ -406,7 +406,7 @@ const metricService = {
         shopName && shopName !== 'all' ? shopName : null)
   },
 
-  saveDetails({ shopId, shopName, platform, date, requestBody, response }) {
+  saveDetails({ shopId, shopName, platform, date, requestBody, response, endpoint = '/mda/v5/overview' }) {
     return db.prepare(`
       INSERT INTO metric_details
         (shop_id, shop_name, platform, start_date, end_date, endpoint, request_body, response_json)
@@ -418,7 +418,7 @@ const metricService = {
         response_json = excluded.response_json,
         updated_at = CURRENT_TIMESTAMP
     `).run(String(shopId), shopName, platform, date, date,
-      '/mda/v5/overview', requestBody, JSON.stringify(response))
+      endpoint, requestBody, JSON.stringify(response))
   },
 
   getDetails({ shopId, platform, startDate, endDate }) {
@@ -434,7 +434,13 @@ const metricService = {
   },
 
   // 单条写入/更新
-  upsert(metric) {
+  upsert(metric, { preserveMissing = false } = {}) {
+    if (preserveMissing) {
+      const existing = db.prepare('SELECT * FROM daily_metrics WHERE shop_name = ? AND platform = ? AND stat_date = ?')
+        .get(metric.shop_name, metric.platform, metric.stat_date);
+      metric = { ...(existing?.is_mock ? {} : existing), ...metric };
+    }
+    const numeric = value => preserveMissing && value == null ? null : Number(value) || 0;
     const stmt = db.prepare(`
       INSERT INTO daily_metrics (
         shop_id, shop_name, platform, stat_date,
@@ -472,18 +478,18 @@ const metricService = {
       shop_name: metric.shop_name,
       platform: metric.platform,
       stat_date: metric.stat_date,
-      exposure: Number(metric.exposure) || 0,
-      visits: Number(metric.visits) || 0,
-      orders: Number(metric.orders) || 0,
-      order_amount: Number(metric.order_amount) || 0,
-      order_coupons: Number(metric.order_coupons) || 0,
-      verify_uv: Number(metric.verify_uv) || 0,
-      verify_amount: Number(metric.verify_amount) || 0,
-      verify_coupons: Number(metric.verify_coupons) || 0,
-      star: Number(metric.star) || 0,
-      new_reviews: Number(metric.new_reviews) || 0,
-      new_bad_reviews: Number(metric.new_bad_reviews) || 0,
-      bad_reply_rate: Number(metric.bad_reply_rate) || 0,
+      exposure: numeric(metric.exposure),
+      visits: numeric(metric.visits),
+      orders: numeric(metric.orders),
+      order_amount: numeric(metric.order_amount),
+      order_coupons: numeric(metric.order_coupons),
+      verify_uv: numeric(metric.verify_uv),
+      verify_amount: numeric(metric.verify_amount),
+      verify_coupons: numeric(metric.verify_coupons),
+      star: numeric(metric.star),
+      new_reviews: numeric(metric.new_reviews),
+      new_bad_reviews: numeric(metric.new_bad_reviews),
+      bad_reply_rate: numeric(metric.bad_reply_rate),
       is_mock: metric.is_mock ? 1 : 0
     })
   },

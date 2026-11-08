@@ -22,3 +22,9 @@ test('partial sync errors immediately report the failing interface, preserve goo
 });
 
 test('failed bad-review list does not immediately clear the shared error dot',async()=>{const ctx=reviewContext([[{shopId:1,shopName:'测试店'}],{reviewDetails:[],errors:['HTTP 503']},{reviewDetails:[],errors:[]}]);await ctx.run('bad');assert.equal(ctx.notices.length,1);assert.equal(ctx.events.some(([channel])=>channel==='bad-review-cleared'),false)});
+
+test('MDA business failures surface the actual reason and never overwrite saved records',async()=>{
+ const notices=[],saved=[];const context=vm.createContext({console:{log(){},error(){}},URLSearchParams,abortRangeSync:false,shopService:{getAll:()=>[{name:'测试店'}]},mainWindow:{isDestroyed:()=>false,webContents:{send(){}}},setTimeout:fn=>fn(),reportTaskError:(_,notice)=>notices.push(notice),metricService:{saveBookingTotal(){},savePromoMetrics(){},saveCallTotal(){},saveRefundMetrics:row=>saved.push(row),saveDetails:row=>saved.push(row),upsert:row=>saved.push(row)}});
+ const tab={id:'tab-mda',view:{webContents:{executeJavaScript:async code=>{new vm.Script(code);if(code.includes('/gateway/merchant/general/shopinfo'))return [{shopId:1,shopName:'测试店'}];if(code.includes('/trade/order/orderlist.api'))return 0;if(code.includes('queryPromoCodeKPIsV2'))return {};if(code.includes('querycallrecordlist'))return 0;return {_syncError:'HTTP 200，业务码 403：无数据权限'};}}}};
+ vm.runInContext(main.slice(main.indexOf('async function executeDataAnalysis'),main.indexOf('// 同步开始时固定')),context);const result=await context.executeDataAnalysis(tab,'2026-11-03');assert.equal(result.success,false);assert.equal(saved.length,0);assert.equal(notices.length,4);assert(notices.every(n=>n.message.includes('无数据权限')));
+});

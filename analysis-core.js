@@ -46,9 +46,9 @@ function summarize(rows) {
     const values = rows.map(r => r[key]).filter(v => typeof v === 'number' && Number.isFinite(v))
     result[key] = values.length ? values.reduce((a,b) => a+b,0) : null
   }
-  result.visit_rate = result.exposure > 0 ? result.visits / result.exposure : null
-  result.order_rate = result.visits > 0 ? result.orders / result.visits : null
-  result.verify_rate = result.orders > 0 ? result.verify_uv / result.orders : null
+  result.visit_rate = result.visits != null && result.exposure > 0 ? result.visits / result.exposure : null
+  result.order_rate = result.orders != null && result.visits > 0 ? result.orders / result.visits : null
+  result.verify_rate = result.verify_uv != null && result.orders > 0 ? result.verify_uv / result.orders : null
   return result
 }
 function endpoint(value) {
