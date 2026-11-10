@@ -23,6 +23,17 @@ test('partial sync errors immediately report the failing interface, preserve goo
 
 test('failed bad-review list does not immediately clear the shared error dot',async()=>{const ctx=reviewContext([[{shopId:1,shopName:'测试店'}],{reviewDetails:[],errors:['HTTP 503']},{reviewDetails:[],errors:[]}]);await ctx.run('bad');assert.equal(ctx.notices.length,1);assert.equal(ctx.events.some(([channel])=>channel==='bad-review-cleared'),false)});
 
+test('review startup waits quietly for login for both tasks and preserves real interface errors',async()=>{
+ for(const mode of ['bad','good']){
+  for(const response of [[],{waitingLogin:true,shops:[]},{shops:[]}]){const ctx=reviewContext([response]);const result=await ctx.run(mode);assert.equal(result.waitingLogin,true);assert.equal(result.hasErrors,false);assert.equal(ctx.notices.length,0);assert(ctx.events.some(([channel,payload])=>channel==='task-progress-update'&&payload.text==='等待登录商户后台'))}
+  const ctx=reviewContext([{error:'HTTP 503',shops:[]}]);assert.equal((await ctx.run(mode)).hasErrors,true);assert.equal(ctx.notices.length,1);assert.match(ctx.notices[0].message,/503/);
+ }
+});
+
+test('merchant routing and page readiness are normal waiting states, not task errors',async()=>{
+ for(const mode of ['bad','good'])for(const response of [{waitingReady:true,shops:[]},{error:'路由信息未找到',shops:[]}]){const ctx=reviewContext([response]),result=await ctx.run(mode);assert.equal(result.waitingReady,true);assert.equal(result.hasErrors,false);assert.equal(ctx.notices.length,0)}
+});
+
 test('MDA business failures surface the actual reason and never overwrite saved records',async()=>{
  const notices=[],saved=[];const context=vm.createContext({console:{log(){},error(){}},URLSearchParams,abortRangeSync:false,shopService:{getAll:()=>[{name:'测试店'}]},mainWindow:{isDestroyed:()=>false,webContents:{send(){}}},setTimeout:fn=>fn(),reportTaskError:(_,notice)=>notices.push(notice),metricService:{saveBookingTotal(){},savePromoMetrics(){},saveCallTotal(){},saveRefundMetrics:row=>saved.push(row),saveDetails:row=>saved.push(row),upsert:row=>saved.push(row)}});
  const tab={id:'tab-mda',view:{webContents:{executeJavaScript:async code=>{new vm.Script(code);if(code.includes('/gateway/merchant/general/shopinfo'))return [{shopId:1,shopName:'测试店'}];if(code.includes('/trade/order/orderlist.api'))return 0;if(code.includes('queryPromoCodeKPIsV2'))return {};if(code.includes('querycallrecordlist'))return 0;return {_syncError:'HTTP 200，业务码 403：无数据权限'};}}}};

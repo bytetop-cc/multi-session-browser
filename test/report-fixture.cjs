@@ -15,6 +15,7 @@ exports.install=async page=>{
  if(name==='metrics-get-weekly')return {records:window.__empty?[]:rows(args.endDate)};
  if(name==='metrics-export-csv')return {success:true};
  if(name==='analysis-export-pdf'){if(window.__pdfFailure)throw Error('导出失败，请重试');return window.__pdfCancel?{canceled:true}:{success:true,filePath:'/tmp/test.pdf'}}
+ if(name==='analysis-export-excel'){if(window.__excelFailure)throw Error('Excel 导出失败，请重试');return window.__excelCancel?{canceled:true}:{success:true,filePath:'/tmp/test.xlsx'}}
  if(name==='analysis-default-prompt')return window.__core.DEFAULT_PROMPT;
  if(name==='analysis-config')return cfg;
  if(name==='analysis-save-config'){if(window.__saveFailure)throw Error('保存失败，请重试');cfg={...cfg,...args,hasKey:args.key?true:args.clearKey?false:cfg.hasKey};delete cfg.key;return cfg}

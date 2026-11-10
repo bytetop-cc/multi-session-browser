@@ -39,7 +39,7 @@ function periods(mode, anchor) {
   }
   return bins
 }
-const fields = ['exposure','visits','orders','order_coupons','order_amount','verify_uv','verify_coupons','verify_amount','new_reviews','new_bad_reviews','refund_coupons','refund_amount']
+const fields = ['exposure','visits','orders','order_coupons','order_amount','verify_uv','verify_coupons','verify_amount','new_reviews','new_good_reviews','new_bad_reviews','refund_coupons','refund_amount']
 function summarize(rows) {
   const result = { count: rows.length }
   for (const key of fields) {
@@ -59,7 +59,7 @@ function endpoint(value) {
   return url.toString()
 }
 function analysisRequestBody({ model, reasoningEffort, prompt, snapshot }) {
-  const platformKeys=['shop_name','stat_date','platform','exposure','visits','orders','order_coupons','order_amount','verify_uv','verify_coupons','verify_amount','refund_coupons','refund_amount','star','new_reviews','new_bad_reviews','bad_reply_rate','ask_user_cnt','avg_reply_duration']
+  const platformKeys=['shop_name','stat_date','platform','exposure','visits','orders','order_coupons','order_amount','verify_uv','verify_coupons','verify_amount','refund_coupons','refund_amount','star','new_reviews','new_good_reviews','new_bad_reviews','bad_reply_rate','ask_user_cnt','avg_reply_duration']
   const shopKeys=['promo_pay_orders','promo_pay_amount','promo_verify_amount','promo_scan_users','promo_scan_favorites','promo_scan_reviews','call_total','booking_total','booking_consumed','booking_refunded','booking_pending']
   const rows=Array.isArray(snapshot.details)?snapshot.details.filter(row=>row&&typeof row==='object'&&!Array.isArray(row)):[]
   const pick=(row,keys)=>Object.fromEntries(keys.filter(key=>Object.hasOwn(row,key)&&(row[key]==null||['string','number'].includes(typeof row[key]))).map(key=>[key,row[key]]))

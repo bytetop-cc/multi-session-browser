@@ -489,7 +489,7 @@
             <div class="auto-task-desc">对每个已打开标签依次执行相同检查（会话独立）</div>
           </div>
           <label class="switch">
-            <input type="checkbox" id="badReviewSwitch" checked onchange="toggleBadReviewMonitor()">
+            <input type="checkbox" id="badReviewSwitch" onchange="toggleBadReviewMonitor()">
             <span class="switch-slider"></span>
           </label>
         </div>
@@ -498,7 +498,7 @@
           <div style="font-weight: 600; margin-bottom: 4px; color: #ea4335; font-size: 12px;">差评 & 预警汇总：</div>
           <div id="badReviewSummaryResult">未开始检查</div>
         </div>
-        <div class="auto-task-status" id="badReviewStatus"></div>
+        <div class="auto-task-status" id="badReviewStatus">登录商户后台后开启</div>
       </div>
       <div class="auto-task" style="display: flex; flex-direction: column; align-items: stretch; gap: 8px;">
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
@@ -507,7 +507,7 @@
             <div class="auto-task-desc">从设置中各门店模板随机选用；对每个已打开标签各执行一遍</div>
           </div>
           <label class="switch">
-            <input type="checkbox" id="goodReviewSwitch" checked onchange="toggleGoodReviewReply()">
+            <input type="checkbox" id="goodReviewSwitch" onchange="toggleGoodReviewReply()">
             <span class="switch-slider"></span>
           </label>
         </div>
@@ -516,7 +516,7 @@
           <div style="font-weight: 600; margin-bottom: 4px; color: #34a853; font-size: 12px;">自动回复汇总：</div>
           <div id="goodReviewSummaryResult">未开始回复</div>
         </div>
-        <div class="auto-task-status" id="goodReviewStatus"></div>
+        <div class="auto-task-status" id="goodReviewStatus">登录商户后台后开启</div>
       </div>
 
     </div>
@@ -895,17 +895,8 @@
       }
     })
 
-    // 初始化：创建第一个标签页并自动调度任务
-    createNewTab().then(() => {
-      setTimeout(() => {
-        if (document.getElementById('badReviewSwitch').checked) {
-          toggleBadReviewMonitor()
-        }
-        if (document.getElementById('goodReviewSwitch').checked) {
-          toggleGoodReviewReply()
-        }
-      }, 1500)
-    })
+    // 仅打开首页；登录并进入商户后台后，由用户开启任务。
+    createNewTab()
 
     // ========== 自动化任务 ==========
 
@@ -1067,6 +1058,7 @@
       let completedCount = 0
       let lastMsg = ''
       let anyError = false
+      let waitingLoginCount = 0
  
       // 1. 启动任务并获取主进程分配的唯一 runId
       let runId;
@@ -1089,6 +1081,8 @@
           console.log('[前端] 启动并行监控:', tid, 'runId:', runId)
           const result = await ipcRenderer.invoke('run-bad-review-monitor', { tabId: tid, runId })
           console.log('[前端] 并行监控返回:', tid, result)
+          if(result?.hasErrors)anyError=true
+          if(result?.waitingLogin||result?.waitingReady)waitingLoginCount++
           
           const tab = tabs.find(t => t.id === tid)
           if (tab && result) {
@@ -1121,7 +1115,7 @@
         const detailMsg = lastMsg.includes('已检查') ? '暂无异常' : lastMsg;
         updateStatus(
           'badReviewStatus',
-          anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮已检查 ${total} 个标签 (共 ${totalCheckedShops} 个门店实例) · ${detailMsg}`,
+          anyError ? `本轮完成（部分失败）· ${lastMsg}` : waitingLoginCount===total ? '等待登录并进入商户后台，后续自动继续检查' : `本轮已检查 ${total} 个标签 (共 ${totalCheckedShops} 个门店实例) · ${detailMsg}`,
           anyError
         )
       }
@@ -1195,6 +1189,7 @@
       let completedCount = 0
       let lastMsg = ''
       let anyError = false
+      let waitingLoginCount = 0
 
       // 1. 启动任务并获取主进程分配的唯一 runId
       let runId;
@@ -1218,6 +1213,7 @@
           const result = await ipcRenderer.invoke('run-good-review-reply', { tabId: tid, runId })
           console.log('[前端] 并行回复返回:', tid, result)
           if(result?.hasErrors)anyError=true
+          if(result?.waitingLogin||result?.waitingReady)waitingLoginCount++
           
           const tab = tabs.find(t => t.id === tid)
           if (tab && result) {
@@ -1250,7 +1246,7 @@
       } else {
         updateStatus(
           'goodReviewStatus',
-          anyError ? `本轮完成（部分失败）· ${lastMsg}` : `本轮已检查 ${total} 个标签 (共 ${totalCheckedShops} 个门店实例) · 成功回复好评 ${totalRepliesDone} 条`,
+          anyError ? `本轮完成（部分失败）· ${lastMsg}` : waitingLoginCount===total ? '等待登录并进入商户后台，后续自动继续检查' : `本轮已检查 ${total} 个标签 (共 ${totalCheckedShops} 个门店实例) · 成功回复好评 ${totalRepliesDone} 条`,
           anyError
         )
       }

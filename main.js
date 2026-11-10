@@ -491,43 +491,54 @@ async function executeReviewTask(tab, mode, runId) {
       return { message: '当前未处于大众点评页面，请先登录并打开点评商户后台' };
     }
 
+    if (tab.view.webContents.isLoadingMainFrame?.() || /\/(?:login|passport|account)(?:[/?#]|$)/i.test(currentUrl)) {
+      mainWindow.webContents.send('task-progress-update',{tabId:tab.id,mode,text:'等待商户页面就绪'});
+      return {waitingReady:true,hasErrors:false,message:'等待登录并进入商户后台'};
+    }
     if (shouldAbort(mode, runId)) return { message: '任务已被手动取消' };
     mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '🔍 获取门店列表中...' });
 
     // 1. 获取账号关联的全部门店列表 (API)
     console.log(`[${taskName}] Step 1: 正在通过 API 获取所有门店列表...`)
-    const apiShopList = await tab.view.webContents.executeJavaScript(`
+    const shopResult = await tab.view.webContents.executeJavaScript(`
       (async function() {
         try {
+          if (document.readyState!=='complete') return {waitingReady:true,shops:[]};
           const res = await fetch('/gateway/merchant/general/shopinfo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              bizType: "review_manage_checkbox",
-              device: "pc",
-              currentTab: "city",
-              shopIds: "0"
-            })
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({bizType:'review_manage_checkbox',device:'pc',currentTab:'city',shopIds:'0'})
           });
-          const data = await res.json();
-          if (data && data.code === 200 && data.data) {
-            return data.data.shopInfoList || [];
+          if (res.status===401 || res.status===403 || /login|passport|account\\.dianping/.test(res.url)) return {waitingLogin:true,shops:[]};
+          if (!res.ok) return {error:'HTTP '+res.status,shops:[]};
+          const text=await res.text();
+          let data;
+          try {data=JSON.parse(text)} catch (_) {
+            if (/<html|<!doctype/i.test(text)) return {waitingLogin:true,shops:[]};
+            return {error:'门店列表返回格式异常',shops:[]};
           }
-        } catch (e) {
-          console.error('[API] 获取门店列表异常:', e.message);
-        }
-        return [];
+          if (data && data.code===200 && data.data) return {shops:data.data.shopInfoList||[]};
+          const message=String(data?.message||data?.msg||'');
+          if (/路由.*(?:未找到|不存在)|route.*not.*found/i.test(message)) return {waitingReady:true,shops:[]};
+          if ([401,403].includes(Number(data?.code)) || /登录|未认证|login|unauthorized|session.*expir/i.test(message)) return {waitingLogin:true,shops:[]};
+          return {error:message||'门店列表接口返回异常',shops:[]};
+        } catch (e) {return {error:e.message,shops:[]}}
       })()
     `);
-
     if (shouldAbort(mode, runId)) return { message: '任务已被手动取消' };
-
-    console.log(`[${taskName}] 接口返回门店总数:`, apiShopList.length);
-    if (apiShopList.length === 0) {
-      mainWindow.webContents.send('task-progress-update', { tabId: tab.id, mode, text: '❌ 门店列表获取失败' });
-      reportError(currentEndpoint,'无法获取商户门店列表，请确认登录状态');
-      return { hasErrors:true, message: '无法获取点评商户门店列表，请确保已登录' };
+    const apiShopList=Array.isArray(shopResult)?shopResult:(shopResult?.shops||[]);
+    if (shopResult?.waitingReady || /路由.*(?:未找到|不存在)|route.*not.*found/i.test(shopResult?.error||'')) {
+      mainWindow.webContents.send('task-progress-update',{tabId:tab.id,mode,text:'等待进入商户业务页面'});
+      return {waitingReady:true,hasErrors:false,message:'商户接口尚未就绪，请登录并进入商户后台，后续自动重试'};
     }
+    if (shopResult?.error) {
+      reportError(currentEndpoint,shopResult.error);
+      return {hasErrors:true,message:'获取门店列表失败：'+shopResult.error};
+    }
+    if (shopResult?.waitingLogin || apiShopList.length===0) {
+      mainWindow.webContents.send('task-progress-update',{tabId:tab.id,mode,text:'等待登录商户后台'});
+      return {waitingLogin:true,hasErrors:false,message:'等待登录商户后台，登录后将在后续检查中自动执行'};
+    }
+    console.log(`[${taskName}] 接口返回门店总数:`,apiShopList.length);
 
     // 2. 匹配本地配置的门店
     const matchedShops = []; // [{ cfg, api }]
@@ -1016,12 +1027,7 @@ async function executeDataAnalysis(tab, customDateStr = null) {
   // 确定目标统计日期 (格式为 YYYY-MM-DD，默认为昨天)
   let dateStr = customDateStr;
   if (!dateStr) {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const year = yesterday.getFullYear();
-    const month = String(yesterday.getMonth() + 1).padStart(2, '0');
-    const day = String(yesterday.getDate()).padStart(2, '0');
-    dateStr = `${year}-${month}-${day}`;
+    dateStr = require('./simple-board').shanghaiYesterday();
   }
   const dateParam = `${dateStr},${dateStr}`;
 
@@ -1239,9 +1245,45 @@ async function executeDataAnalysis(tab, customDateStr = null) {
             "return {_syncError:'业务码 '+String(json.code)+'：'+String(json.msg||json.message||'简版看板返回异常').slice(0,240)};" +
             "return json; } catch(e) {return {_syncError:e.name+': '+e.message};} })()"
           );
-          if (!simple || simple._syncError) throw new Error(simple?._syncError || '未返回结果');
+          if (!simple || simple._syncError) {
+            const message = simple?._syncError || '未返回结果';
+            if (/(?:noRightsShop|无门店权限)/i.test(message)) {
+              console.log('[' + displayName + ' · ' + platformName + '] 简版看板无门店权限，跳过');
+              continue;
+            }
+            throw new Error(message);
+          }
           const metrics = require('./simple-board').parseSimpleBoard(simple, platformName);
           if (!Object.keys(metrics).length) throw new Error('简版看板没有有效经营指标');
+          // 评价概览不支持历史日期，仅补昨日星级，不把累计评价数当作新增数。
+          if (dateStr === require('./simple-board').shanghaiYesterday()) {
+            try {
+              const reviewOverview = await tab.view.webContents.executeJavaScript(
+                '(async () => {try {' +
+                'const response=await fetch("/gateway/merchant/review/overview?yodaReady=h5&csecplatform=4&csecversion=4.3.0",{' +
+                'method:"POST",credentials:"include",signal:AbortSignal.timeout(15000),headers:{"Content-Type":"application/json"},body:' +
+                JSON.stringify(JSON.stringify({platform:platformVal,shopIds:[shopId]})) +
+                '});return response.ok?await response.json():null;}catch(_){return null;}})()'
+              );
+              const star = require('./simple-board').parseReviewOverviewStar(reviewOverview);
+              if (star !== null) {
+                metrics.star = star;
+                simple.reviewOverviewSupplement = reviewOverview;
+              }
+            } catch (_) { /* 补充失败保留简版看板或已有星级，不中断同步。 */ }
+            try {
+              const recentStats = await tab.view.webContents.executeJavaScript(
+                '(async () => {try {' +
+                'const response=await fetch("/gateway/merchant/review/recentStats?yodaReady=h5&csecplatform=4&csecversion=4.3.0",{' +
+                'method:"POST",credentials:"include",signal:AbortSignal.timeout(15000),headers:{"Content-Type":"application/json"},body:' +
+                JSON.stringify(JSON.stringify({platform:platformVal,dateScope:1,shopIds:[shopId]})) +
+                '});return response.ok?await response.json():null;}catch(_){return null;}})()'
+              );
+              const reviewMetrics = require('./simple-board').parseRecentReviewStats(recentStats);
+              Object.assign(metrics,reviewMetrics);
+              if (Object.keys(reviewMetrics).length) simple.recentStatsSupplement = recentStats;
+            } catch (_) { /* 评价补充失败不影响经营数据，也不覆盖已有记录。 */ }
+          }
           metricService.saveDetails({ shopId, shopName: displayName, platform: platformName,
             date: dateStr, requestBody: simpleQuery, response: simple, endpoint });
           metricService.upsert({ shop_id: String(shopId), shop_name: displayName,

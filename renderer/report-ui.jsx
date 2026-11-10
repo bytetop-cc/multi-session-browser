@@ -8,6 +8,7 @@ import { GridComponent, TooltipComponent, LegendComponent, AriaComponent } from 
 import { SVGRenderer } from 'echarts/renderers';
 import './report-ui.css';
 import {RobotOutlined,LoadingOutlined} from '@ant-design/icons';
+import {latestPlatformMetrics} from './report-data';
 
 echarts.use([FunnelChart, LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, AriaComponent, SVGRenderer]);
 const number = v => v == null || v === '--' ? '--' : Number.isFinite(Number(v)) ? Number(v).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : String(v);
@@ -15,7 +16,7 @@ const money = v => v == null ? '--' : '¥' + Number(v).toLocaleString('zh-CN', {
 const ratio = (a,b) => a == null || b == null || Number(b) <= 0 ? null : Number(a) / Number(b);
 const percent = v => v == null ? '--' : (Number(v) * 100).toFixed(1) + '%';
 const storeKeys = ['promo_pay_orders','promo_pay_amount','promo_verify_amount','promo_scan_users','promo_scan_favorites','promo_scan_reviews','call_total','booking_total','booking_consumed','booking_refunded','booking_pending'];
-const sumKeys = ['exposure','visits','orders','order_coupons','order_amount','verify_uv','verify_coupons','verify_amount','new_reviews','new_bad_reviews','refund_coupons','refund_amount','ask_user_cnt',...storeKeys];
+const sumKeys = ['exposure','visits','orders','order_coupons','order_amount','verify_uv','verify_coupons','verify_amount','new_reviews','new_good_reviews','new_bad_reviews','refund_coupons','refund_amount','ask_user_cnt',...storeKeys];
 function Chart({option, height=300}) {
   const ref=useRef(null);
   useEffect(()=>{
@@ -52,8 +53,13 @@ function ReportTrend({bins,series=combinedTrendSeries,partial=false,height=240,i
  const option={animation:false,aria:{enabled:true},color:['#c29b00','#1677ff','#cf1322','#722ed1','#13a8a8','#389e0d'],legend:{selectedMode:interactiveLegend,top:0,left:'center',textStyle:{fontSize:12,color:'#344256'}},grid:{left:12,right:18,top:series.length>6?(document.body.dataset.page==='print'?180:105):70,bottom:12,containLabel:true},tooltip:{trigger:'axis',renderMode:'richText'},xAxis:{type:'category',data:data.map((bin,i)=>bin.label+(partial&&i===data.length-1?'（未结束）':'')),axisLabel:{fontSize:11,color:'#64748b',hideOverlap:true},axisLine:{lineStyle:{color:'#d9e1eb'}}},yAxis:currency&&series.some(([key])=>!key.includes('amount'))?[{type:'value',name:'金额（元）',axisLabel:{color:'#64748b'},splitLine:{lineStyle:{color:'#edf1f6'}}},{type:'value',name:'数量',axisLabel:{color:'#64748b'},splitLine:{show:false}}]:{type:'value',name:currency?'金额（元）':'数量',axisLabel:{color:'#64748b'},splitLine:{lineStyle:{color:'#edf1f6'}}},series:series.map(([key,name])=>({name,type:'line',itemStyle:{color:({order_amount:'#c29b00',verify_amount:'#1677ff',refund_amount:'#cf1322',exposure:'#722ed1',visits:'#13a8a8',orders:'#389e0d',order_coupons:'#d46b08',verify_coupons:'#096dd9',refund_coupons:'#c41d7f',verify_uv:'#08979c'})[key]},yAxisIndex:currency&&series.some(([k])=>!k.includes('amount'))&&!key.includes('amount')?1:0,smooth:false,connectNulls:false,symbolSize:6,lineStyle:{width:2},data:data.map(bin=>bin[key]??null)}))};
  return <Chart option={option} height={height}/>;
 }
+function platformMetric(row,key,format){
+  if(!['star','bad_reply_rate','avg_reply_duration'].includes(key))return null;
+  if(row.platform_metrics)return <div className="report-platform-values">{Object.entries(row.platform_metrics).map(([platform,metrics])=><div key={platform}>{platform} {format(metrics[key])}</div>)}</div>;
+  return row.multiple_shops?<span>分门店、平台查看</span>:null;
+}
 function numericColumn(title,key,options={}) {
-  return {title,dataIndex:key,key,width:key.includes('amount')?165:120,align:'right',sorter:(a,b)=>{const av=options.value?options.value(a):a[key],bv=options.value?options.value(b):b[key];return (Number(av)||0)-(Number(bv)||0)},render:(v,row)=>{const val=options.value?options.value(row):v;return <span className={key.includes('amount')?'report-amount':''}>{options.rate?percent(val):key.includes('amount')?money(val):number(val)}</span>}};
+  return {title,dataIndex:key,key,width:key.includes('amount')?165:120,align:'right',sorter:(a,b)=>{const av=options.value?options.value(a):a[key],bv=options.value?options.value(b):b[key];return (Number(av)||0)-(Number(bv)||0)},render:(v,row)=>{const val=options.value?options.value(row):v;return platformMetric(row,key,options.rate?percent:number)||<span className={key.includes('amount')?'report-amount':''}>{options.rate?percent(val):key.includes('amount')?money(val):number(val)}</span>}};
 }
 const group=(title,children)=>({title,children});
 function detailColumns(withGroup,onShopClick) {
@@ -65,8 +71,8 @@ function detailColumns(withGroup,onShopClick) {
   ]),group('客流',[numericColumn('曝光人数','exposure'),numericColumn('访问人数','visits'),numericColumn('访问率','visit_rate',{rate:true,value:r=>ratio(r.visits,r.exposure)})]),
     group('下单',[numericColumn('下单人数','orders'),numericColumn('下单券数','order_coupons'),numericColumn('下单金额（原价）','order_amount')]),
     group('核销',[numericColumn('核销人次','verify_uv'),numericColumn('核销券数','verify_coupons'),numericColumn('核销金额（原价）','verify_amount'),numericColumn('核销金额 / 下单金额','verify_rate',{rate:true,value:r=>ratio(r.verify_amount,r.order_amount)})]),
-    group('星级与评价',[numericColumn('星级','star'),numericColumn('新增评价','new_reviews'),numericColumn('新增差评','new_bad_reviews'),numericColumn('差评回复率','bad_reply_rate',{rate:true})]),
-    group('在线咨询',[numericColumn('在线咨询人数','ask_user_cnt'),{title:'平均响应时长',dataIndex:'avg_reply_duration',width:145,render:v=>v??'--'}]),
+    group('星级与评价',[numericColumn('星级','star'),numericColumn('新增评价','new_reviews'),numericColumn('新增好评','new_good_reviews'),numericColumn('新增差评','new_bad_reviews'),numericColumn('差评回复率','bad_reply_rate',{rate:true})]),
+    group('在线咨询',[numericColumn('在线咨询人数','ask_user_cnt'),{title:'平均响应时长',dataIndex:'avg_reply_duration',width:145,render:(v,row)=>platformMetric(row,'avg_reply_duration',value=>value??'--')??v??'--'}]),
     group('优惠码',[...['支付订单','支付金额','核销金额','扫码人数','扫码收藏数','扫码评价数'].map((title,i)=>numericColumn(title,storeKeys[i]))]),
     group('虚拟话单',[numericColumn('话单总数','call_total')]),group('预订订单',['订单总数','已消费','已退款','待消费'].map((title,i)=>numericColumn(title,storeKeys[i+7]))),
     group('退款',[numericColumn('退款券数','refund_coupons'),numericColumn('退款金额（原价）','refund_amount')])];
@@ -93,6 +99,8 @@ function Details({records,withGroup=false,onShopClick}) {
   }))})),leaves=columns.flatMap(c=>c.children);
   // One aggregate per shop/day is the only source for totals, including shop-only metrics.
   const totals=addTotals(records.filter(r=>r.platform==='汇总'));
+  totals.multiple_shops=new Set(records.map(row=>row.shop_id||row.shop_name)).size>1;
+  if(!totals.multiple_shops)totals.platform_metrics=latestPlatformMetrics(records);
   return <Table className="report-details" size="small" bordered columns={columns} dataSource={visibleRows} onChange={(_,filters,sorter)=>{setPlatforms(filters.platform||null);setSort(sorter.order?{columnKey:sorter.columnKey,order:sorter.order}:null)}} rowClassName={r=>r.platform==='汇总'?'report-summary-row':''} pagination={false} scroll={{x:leaves.reduce((n,c)=>n+c.width,0),y:520}} locale={{emptyText:<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前范围暂无数据，请调整日期、门店或同步数据"/>}} summary={()=>records.length?<Table.Summary fixed><Table.Summary.Row>{leaves.map((c,i)=><Table.Summary.Cell key={c.key||c.dataIndex} index={i} align={i<2?'left':'right'}>{i===0?'所选范围合计':i===1?'':c.render?c.render(totals[c.dataIndex],totals):'--'}</Table.Summary.Cell>)}</Table.Summary.Row></Table.Summary>:null}/>;
 }
 function Stores({records}) {

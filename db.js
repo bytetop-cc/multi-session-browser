@@ -82,6 +82,7 @@ function initDatabase() {
       verify_coupons INTEGER DEFAULT 0,
       star REAL DEFAULT 0,
       new_reviews INTEGER DEFAULT 0,
+      new_good_reviews INTEGER DEFAULT NULL,
       new_bad_reviews INTEGER DEFAULT 0,
       bad_reply_rate REAL DEFAULT 0,
       is_mock INTEGER DEFAULT 0,
@@ -142,6 +143,9 @@ function initDatabase() {
     );
   `)
 
+  if (!db.prepare('PRAGMA table_info(daily_metrics)').all().some(c => c.name === 'new_good_reviews')) {
+    db.exec('ALTER TABLE daily_metrics ADD COLUMN new_good_reviews INTEGER DEFAULT NULL')
+  }
   migrateTemplatesShopId()
   migrateRemoveTemplateUseCount()
   purgeTemplatesWithoutShop()
@@ -446,13 +450,13 @@ const metricService = {
         shop_id, shop_name, platform, stat_date,
         exposure, visits, orders, order_amount, order_coupons,
         verify_uv, verify_amount, verify_coupons,
-        star, new_reviews, new_bad_reviews, bad_reply_rate,
+        star, new_reviews, new_good_reviews, new_bad_reviews, bad_reply_rate,
         is_mock, updated_at
       ) VALUES (
         @shop_id, @shop_name, @platform, @stat_date,
         @exposure, @visits, @orders, @order_amount, @order_coupons,
         @verify_uv, @verify_amount, @verify_coupons,
-        @star, @new_reviews, @new_bad_reviews, @bad_reply_rate,
+        @star, @new_reviews, @new_good_reviews, @new_bad_reviews, @bad_reply_rate,
         @is_mock, CURRENT_TIMESTAMP
       )
       ON CONFLICT(shop_name, platform, stat_date) DO UPDATE SET
@@ -467,6 +471,7 @@ const metricService = {
         verify_coupons = excluded.verify_coupons,
         star = excluded.star,
         new_reviews = excluded.new_reviews,
+        new_good_reviews = excluded.new_good_reviews,
         new_bad_reviews = excluded.new_bad_reviews,
         bad_reply_rate = excluded.bad_reply_rate,
         is_mock = excluded.is_mock,
@@ -488,6 +493,7 @@ const metricService = {
       verify_coupons: numeric(metric.verify_coupons),
       star: numeric(metric.star),
       new_reviews: numeric(metric.new_reviews),
+      new_good_reviews: metric.new_good_reviews == null ? null : numeric(metric.new_good_reviews),
       new_bad_reviews: numeric(metric.new_bad_reviews),
       bad_reply_rate: numeric(metric.bad_reply_rate),
       is_mock: metric.is_mock ? 1 : 0

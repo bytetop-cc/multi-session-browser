@@ -46,6 +46,7 @@
       "report-assets/**/*",
       "comparison-core.js",
       "analysis-pdf.js",
+      "analysis-excel.js",
       "report-print.html"
     ],
     "mac": {
@@ -82,6 +83,7 @@
     "better-sqlite3": "^12.11.1",
     "dayjs": "^1.11.23",
     "echarts": "^6.1.0",
+    "exceljs": "^4.4.0",
     "playwright": "^1.59.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

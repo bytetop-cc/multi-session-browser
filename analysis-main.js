@@ -15,6 +15,7 @@ function registerAnalysis({ app, db, ipcMain, BrowserWindow, safeStorage, metric
     window.on('closed',()=>{window=null})
   })
   require('./analysis-pdf').registerAnalysisPdf({ipcMain,BrowserWindow,dialog:require('electron').dialog,service,getWindow:()=>window})
+  require('./analysis-excel').registerAnalysisExcel({ipcMain,dialog:require('electron').dialog,getWindow:()=>window})
   const handlers = {
     'analysis-shops':()=>{
       const observed=db.prepare('SELECT DISTINCT shop_name FROM daily_metrics WHERE is_mock=0 ORDER BY shop_name').all().map(row=>row.shop_name)
