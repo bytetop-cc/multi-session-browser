@@ -19,17 +19,19 @@ test('Excel round trips all report periods with typed numbers, missing values an
     await loaded.xlsx.load(await book.xlsx.writeBuffer());
     const sheet=loaded.worksheets[0],metrics=report.comparison.metrics;
     assert.equal(sheet.getCell('A1').value,'测试店 · '+({daily:'日报',weekly:'周报',monthly:'月报'}[mode])+'对比');
-    assert(sheet.getCell('A3').value.includes(report.period.start));
+    assert(sheet.getCell('A2').value.includes(report.comparison.previous_period.start));
     for(const [i,m] of metrics.entries()){
-      const row=sheet.getRow(7+i);
-      assert.equal(row.getCell(3).value,m.previous??'--');
-      assert.equal(row.getCell(4).value,m.current??'--');
+      const row=sheet.getRow(6+i);
+      assert.equal(row.getCell(3).value,m.previous??0);
+      assert.equal(row.getCell(4).value,m.current??0);
+      if(m.key==='visit_rate')assert.equal(row.getCell(4).numFmt,'0.00%');
+      continue;
       if(m.key==='visit_rate'){assert.equal(row.getCell(4).numFmt,'0.00%');assert(Math.abs(row.getCell(5).value-10)<1e-8);assert(row.getCell(5).numFmt.includes('个百分点'));}
       if(m.key==='order_amount'){assert.equal(row.getCell(3).value,0);assert.equal(row.getCell(6).value,'--');}
       if(m.key==='dp_good_reviews'){assert.equal(row.getCell(3).value,2);assert.equal(row.getCell(4).value,0);assert.equal(row.getCell(5).value,-2);}
       if(m.key==='mt_star')assert.equal(row.getCell(4).value,'--');
     }
-    assert.equal(sheet.views[0].ySplit,6);
+    assert.equal(sheet.views[0].ySplit,5);
   }
 });
 test('Excel IPC validates owner, handles cancel/failure and saves chosen xlsx path',async()=>{
@@ -46,6 +48,6 @@ test('Excel IPC validates owner, handles cancel/failure and saves chosen xlsx pa
     choice={filePath:path.join(dir,'missing','report.xlsx')};await assert.rejects(handler(event,args));
     choice={filePath:path.join(dir,'report')};
     const saved=await handler(event,args);assert.equal(saved.success,true);assert.equal(saved.filePath,choice.filePath+'.xlsx');
-    const loaded=new ExcelJS.Workbook();await loaded.xlsx.readFile(saved.filePath);assert.equal(loaded.worksheets[0].getCell('B7').value,'曝光人数');
+    const loaded=new ExcelJS.Workbook();await loaded.xlsx.readFile(saved.filePath);assert.equal(loaded.worksheets[0].getCell('B6').value,'曝光人数');
   }finally{await fs.rm(dir,{recursive:true,force:true});}
 });

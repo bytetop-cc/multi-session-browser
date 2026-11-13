@@ -30,6 +30,7 @@ function registerAnalysis({ app, db, ipcMain, BrowserWindow, safeStorage, metric
     'analysis-save-config':args=>service.saveConfig(args),
     'analysis-default-prompt':()=>service.defaultPrompt,
     'analysis-report':args=>{if(!args?.shopName)throw Error('请选择单个门店');return service.report({shopName:args.shopName,mode:args.mode,anchor:args.anchor})},
+    'analysis-comparison':args=>service.comparison(args||{}),
     'analysis-history':id=>service.history(id),
     'analysis-record':id=>service.runRecord(id),
     'analysis-update-record':args=>service.updateResult({id:args?.id,result:args?.result}),

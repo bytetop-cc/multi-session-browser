@@ -30,4 +30,8 @@ function comparePeriods(previousRows,currentRows,previousPeriod,currentPeriod){
  return {previous_period:previousPeriod,current_period:currentPeriod,previous_observed_days:new Set(previousRows.map(r=>r.stat_date)).size,current_observed_days:new Set(currentRows.map(r=>r.stat_date)).size,
  metrics:definitions.map(([module,key,label,unit])=>{const before=previous[key],after=current[key];return {key,module,label,unit,previous:before,current:after,delta:before==null||after==null?null:after-before,change_rate:before==null||after==null||before===0?null:(after-before)/before}})};
 }
-module.exports={comparePeriods,periodMetrics};
+function compareRangePeriods(rows,periods){
+ const values=periods.map(period=>{const selected=rows.filter(row=>row.stat_date>=period.start&&row.stat_date<=period.end),metrics=periodMetrics(selected);return {period,observed_days:new Set(selected.map(row=>row.stat_date)).size,metrics:Object.fromEntries(Object.entries(metrics).map(([key,value])=>[key,value??0]))}});
+ return {periods:values.map(item=>({...item.period,observed_days:item.observed_days})),metrics:definitions.map(([module,key,label,unit])=>({key,module,label,unit,values:values.map(item=>item.metrics[key])}))};
+}
+module.exports={comparePeriods,compareRangePeriods,periodMetrics};

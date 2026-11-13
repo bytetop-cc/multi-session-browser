@@ -3,3 +3,4 @@
 @media(min-width:1051px){.analysis-grid{grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr)}}.report-mount .ant-table-thead{position:static}.report-mount .ant-table-cell{min-width:0}.report-mount .ant-table-summary td{min-width:0}
 
 .report-details .ant-table-tbody>tr>td.report-merged-store{vertical-align:middle;background:#fff!important}
+.comparison-filter{padding:16px 20px;border-bottom:1px solid #f0f0f0;gap:10px}.comparison-filter .ant-form-item{margin:0}

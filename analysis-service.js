@@ -1,4 +1,4 @@
-const { comparePeriods } = require('./comparison-core')
+const { comparePeriods, compareRangePeriods } = require('./comparison-core')
 const { DEFAULT_PROMPT, periods, summarize, date, shift, requestAnalysis, endpoint } = require('./analysis-core')
 function createAnalysisService({ db, safeStorage }) {
   db.exec(`CREATE TABLE IF NOT EXISTS analysis_groups (
@@ -49,6 +49,20 @@ function createAnalysisService({ db, safeStorage }) {
     return config()
   }
   const groupData = id => { const g=groups().find(g=>g.id===Number(id));if(!g)throw Error('请先配置并选择门店组');return g }
+  function comparison({shopName, mode, startDate, endDate}) {
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(startDate)||!/^\d{4}-\d{2}-\d{2}$/.test(endDate)||startDate>endDate)throw Error('请选择有效的对比日期范围')
+    if(!['daily','weekly','monthly'].includes(mode))throw Error('无效报表周期')
+    const name=String(shopName||'').trim(),normalize=value=>value.replace(/[\s()（）]/g,'').toLowerCase()
+    const known=db.prepare('SELECT DISTINCT shop_name FROM daily_metrics WHERE is_mock=0').all().map(row=>row.shop_name)
+    const canonical=known.find(actual=>normalize(actual)===normalize(name))
+    if(!canonical)throw Error('该门店暂无已同步经营数据，请先同步')
+    const rows=db.prepare(`SELECT m.*,r.refund_coupons,r.refund_amount FROM daily_metrics m
+      LEFT JOIN shop_refund_metrics r ON r.shop_id=m.shop_id AND r.stat_date=m.stat_date AND r.platform=m.platform
+      WHERE m.shop_name=? AND m.stat_date BETWEEN ? AND ? AND m.is_mock=0 ORDER BY m.stat_date,m.platform`).all(canonical,startDate,endDate)
+    const result=[],cursor=new Date(startDate+'T00:00:00Z'),last=new Date(endDate+'T00:00:00Z')
+    while(cursor<=last){const start=cursor.toISOString().slice(0,10);let bucketEnd=new Date(cursor);if(mode==='weekly')bucketEnd.setUTCDate(bucketEnd.getUTCDate()+(7-bucketEnd.getUTCDay())%7);else if(mode==='monthly')bucketEnd=new Date(Date.UTC(bucketEnd.getUTCFullYear(),bucketEnd.getUTCMonth()+1,0));if(bucketEnd>last)bucketEnd=last;result.push({start,end:bucketEnd.toISOString().slice(0,10)});cursor.setUTCDate(bucketEnd.getUTCDate()+1)}
+    return {...compareRangePeriods(rows,result),shop_name:canonical,mode,start_date:startDate,end_date:endDate}
+  }
   function report({shopName, groupId, mode, anchor}) {
     let configured
     if (shopName) {
@@ -112,7 +126,7 @@ function createAnalysisService({ db, safeStorage }) {
         observed_platform_records:selected.length, partial_period:current.end>=now,
         note:'缺失日期不补零；人数按门店和平台累加，未跨店去重；预订为按下单日期筛选的当前状态快照。' },
       summary:summarize(selected),
-      comparison:comparePeriods(rows.filter(r=>r.stat_date>=bins.at(-2).start&&r.stat_date<=bins.at(-2).end),selected,bins.at(-2),current),
+      comparison:{...comparePeriods(rows.filter(r=>r.stat_date>=bins.at(-2).start&&r.stat_date<=bins.at(-2).end),selected,bins.at(-2),current),shop_name:group.shops[0],mode},
       platforms:['美团','点评'].map(platform=>({ platform,...summarize(selected.filter(r=>r.platform===platform)) })),
       trend:bins.map(bin=>({...bin,...summarize(rows.filter(r=>r.stat_date>=bin.start&&r.stat_date<=bin.end))})),
       stores:group.shops.map(shop=>({shop_name:shop,...summarize(selected.filter(r=>r.shop_name===shop)), observed_days:new Set(selected.filter(r=>r.shop_name===shop).map(r=>r.stat_date)).size})),
@@ -165,6 +179,6 @@ function createAnalysisService({ db, safeStorage }) {
       return runRecord(id)
     } finally {pending.delete(lock)}
   }
-  return { groups, saveGroup, deleteGroup:id=>db.prepare('DELETE FROM analysis_groups WHERE id=?').run(id), config, saveConfig, report, history, runRecord, updateResult, run, defaultPrompt:DEFAULT_PROMPT }
+  return { groups, saveGroup, deleteGroup:id=>db.prepare('DELETE FROM analysis_groups WHERE id=?').run(id), config, saveConfig, report, comparison, history, runRecord, updateResult, run, defaultPrompt:DEFAULT_PROMPT }
 }
 module.exports={createAnalysisService}

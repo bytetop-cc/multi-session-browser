@@ -20,6 +20,7 @@ exports.install=async page=>{
  if(name==='analysis-config')return cfg;
  if(name==='analysis-save-config'){if(window.__saveFailure)throw Error('保存失败，请重试');cfg={...cfg,...args,hasKey:args.key?true:args.clearKey?false:cfg.hasKey};delete cfg.key;return cfg}
  if(name==='analysis-report'){if(window.__slowShop===args.shopName)await new Promise(r=>setTimeout(r,400));return report(args)}
+ if(name==='analysis-comparison'){const periods=[],start=window.dayjs?window.dayjs(args.startDate):null;for(let date=args.startDate;date<=args.endDate;){periods.push({start:date,end:date});const next=new Date(date+'T00:00:00Z');next.setUTCDate(next.getUTCDate()+1);date=next.toISOString().slice(0,10)}return window.__comparison.compareRangePeriods(periods.flatMap(period=>rows(period.end,args.shopName)),periods)}
  if(name==='analysis-history')return history.filter(r=>r.shop_name===args);
  if(name==='analysis-record')return history.find(r=>r.id===args);
  if(name==='analysis-update-record'){if(window.__resultSaveFailure)throw Error('保存失败，请重试');const i=history.findIndex(r=>r.id===args.id);history[i]={...history[i],result:args.result,updated_at:'2026-11-05 11:00:00'};return history[i]}
