@@ -56,8 +56,17 @@ function createAnalysisService({ db, safeStorage }) {
     const known=db.prepare('SELECT DISTINCT shop_name FROM daily_metrics WHERE is_mock=0').all().map(row=>row.shop_name)
     const canonical=known.find(actual=>normalize(actual)===normalize(name))
     if(!canonical)throw Error('该门店暂无已同步经营数据，请先同步')
-    const rows=db.prepare(`SELECT m.*,r.refund_coupons,r.refund_amount FROM daily_metrics m
+    const rows=db.prepare(`SELECT m.*,r.refund_coupons,r.refund_amount,
+      p.pay_orders AS promo_pay_orders, p.scan_favorites AS promo_scan_favorites,
+      c.total AS call_total, b0.total AS booking_total, b3.total AS booking_consumed,
+      b5.total AS booking_refunded
+      FROM daily_metrics m
       LEFT JOIN shop_refund_metrics r ON r.shop_id=m.shop_id AND r.stat_date=m.stat_date AND r.platform=m.platform
+      LEFT JOIN shop_promo_metrics p ON p.shop_id=m.shop_id AND p.stat_date=m.stat_date
+      LEFT JOIN shop_call_totals c ON c.shop_id=m.shop_id AND c.stat_date=m.stat_date
+      LEFT JOIN shop_booking_totals b0 ON b0.shop_id=m.shop_id AND b0.stat_date=m.stat_date AND b0.order_type=0
+      LEFT JOIN shop_booking_totals b3 ON b3.shop_id=m.shop_id AND b3.stat_date=m.stat_date AND b3.order_type=3
+      LEFT JOIN shop_booking_totals b5 ON b5.shop_id=m.shop_id AND b5.stat_date=m.stat_date AND b5.order_type=5
       WHERE m.shop_name=? AND m.stat_date BETWEEN ? AND ? AND m.is_mock=0 ORDER BY m.stat_date,m.platform`).all(canonical,startDate,endDate)
     const result=[],cursor=new Date(startDate+'T00:00:00Z'),last=new Date(endDate+'T00:00:00Z')
     while(cursor<=last){const start=cursor.toISOString().slice(0,10);let bucketEnd=new Date(cursor);if(mode==='weekly')bucketEnd.setUTCDate(bucketEnd.getUTCDate()+(7-bucketEnd.getUTCDay())%7);else if(mode==='monthly')bucketEnd=new Date(Date.UTC(bucketEnd.getUTCFullYear(),bucketEnd.getUTCMonth()+1,0));if(bucketEnd>last)bucketEnd=last;result.push({start,end:bucketEnd.toISOString().slice(0,10)});cursor.setUTCDate(bucketEnd.getUTCDate()+1)}
