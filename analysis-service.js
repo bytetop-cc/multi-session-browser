@@ -127,6 +127,13 @@ function createAnalysisService({ db, safeStorage }) {
     }
     const extras=shopMetrics(current)
     const previousPeriod=bins.at(-2)
+    // 等级/经营评分只在同步昨日数据时采集，取统计周期结束前最近一次快照。
+    const growth=db.prepare(`SELECT g.shop_id, g.shop_name, g.stat_date, g.grade_name,
+      g.grade_value, g.grade_expire, g.score FROM shop_growth_metrics g
+      WHERE g.shop_name IN (${marks}) AND g.stat_date <= ?
+        AND g.stat_date = (SELECT MAX(x.stat_date) FROM shop_growth_metrics x
+          WHERE x.shop_id = g.shop_id AND x.stat_date <= ?)
+      ORDER BY g.shop_name`).all(...group.shops, current.end, current.end)
     const days = Math.round((date(current.end)-date(current.start))/86400000)+1
     const observed=new Set(selected.map(r=>JSON.stringify([r.shop_name,r.stat_date])))
     const now = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
@@ -139,6 +146,7 @@ function createAnalysisService({ db, safeStorage }) {
       platforms:['美团','点评'].map(platform=>({ platform,...summarize(selected.filter(r=>r.platform===platform)) })),
       trend:bins.map(bin=>({...bin,...summarize(rows.filter(r=>r.stat_date>=bin.start&&r.stat_date<=bin.end))})),
       stores:group.shops.map(shop=>({shop_name:shop,...summarize(selected.filter(r=>r.shop_name===shop)), observed_days:new Set(selected.filter(r=>r.shop_name===shop).map(r=>r.stat_date)).size})),
+      growth,
       shop_metrics:extras, details:selected, previous_details:rows.filter(r=>r.stat_date>=previousPeriod.start&&r.stat_date<=previousPeriod.end), previous_shop_metrics:shopMetrics(previousPeriod) }
   }
   const history = value => {

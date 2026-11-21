@@ -143,6 +143,22 @@ function initDatabase() {
     );
   `)
 
+  // 门店成长快照：等级与经营评分不区分平台且接口不支持历史日期，
+  // 仅在同步昨日数据时保存当日快照。
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS shop_growth_metrics (
+      shop_id TEXT NOT NULL,
+      shop_name TEXT NOT NULL,
+      stat_date TEXT NOT NULL,
+      grade_name TEXT,
+      grade_value INTEGER,
+      grade_expire TEXT,
+      score REAL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(shop_id, stat_date)
+    );
+  `)
+
   if (!db.prepare('PRAGMA table_info(daily_metrics)').all().some(c => c.name === 'new_good_reviews')) {
     db.exec('ALTER TABLE daily_metrics ADD COLUMN new_good_reviews INTEGER DEFAULT NULL')
   }
@@ -408,6 +424,34 @@ const metricService = {
       AND (? IS NULL OR shop_name = ?) GROUP BY shop_id, shop_name ORDER BY total DESC`)
       .all(startDate, endDate, shopName && shopName !== 'all' ? shopName : null,
         shopName && shopName !== 'all' ? shopName : null)
+  },
+
+  // 等级/评分接口只返回当前值，重复同步同一天时用 COALESCE 保留已成功采集的字段。
+  saveGrowthMetrics({ shopId, shopName, date, gradeName = null, gradeValue = null, gradeExpire = null, score = null }) {
+    return db.prepare(`INSERT INTO shop_growth_metrics
+      (shop_id, shop_name, stat_date, grade_name, grade_value, grade_expire, score)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(shop_id, stat_date) DO UPDATE SET
+        shop_name = excluded.shop_name,
+        grade_name = COALESCE(excluded.grade_name, shop_growth_metrics.grade_name),
+        grade_value = COALESCE(excluded.grade_value, shop_growth_metrics.grade_value),
+        grade_expire = COALESCE(excluded.grade_expire, shop_growth_metrics.grade_expire),
+        score = COALESCE(excluded.score, shop_growth_metrics.score),
+        updated_at = CURRENT_TIMESTAMP`)
+      .run(String(shopId), shopName, date, gradeName, gradeValue, gradeExpire, score)
+  },
+
+  // 取每家门店在指定日期前最近一次快照，历史报表不回填更晚的等级/评分。
+  getGrowthSnapshot({ shopNames, endDate }) {
+    if (!Array.isArray(shopNames) || !shopNames.length) return []
+    const marks = shopNames.map(() => '?').join(',')
+    return db.prepare(`SELECT g.shop_id, g.shop_name, g.stat_date, g.grade_name,
+      g.grade_value, g.grade_expire, g.score
+      FROM shop_growth_metrics g
+      WHERE g.shop_name IN (${marks}) AND g.stat_date <= ?
+        AND g.stat_date = (SELECT MAX(x.stat_date) FROM shop_growth_metrics x
+          WHERE x.shop_id = g.shop_id AND x.stat_date <= ?)
+      ORDER BY g.shop_name`).all(...shopNames, endDate, endDate)
   },
 
   saveDetails({ shopId, shopName, platform, date, requestBody, response, endpoint = '/mda/v5/overview' }) {

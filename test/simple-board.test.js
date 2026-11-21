@@ -8,9 +8,13 @@ const main = fs.readFileSync(require.resolve('../main'), 'utf8');
 test('simple board missing people metrics never produce zero conversion rates', () => {
   const {summarize}=require('../analysis-core');
   const summary=summarize([{exposure:83,visits:11,orders:null,verify_uv:null,order_coupons:1}]);
-  assert.equal(summary.visit_rate,11/83);assert.equal(summary.order_rate,null);assert.equal(summary.verify_rate,null);
+  assert.equal(summary.visit_rate,11/83);assert.equal(summary.order_rate,1/11);assert.equal(summary.verify_rate,null);
   assert.equal(summarize([{exposure:83,visits:null}]).visit_rate,null);
-  assert.equal(summarize([{visits:11,orders:0}]).order_rate,0);
+  assert.equal(summarize([{visits:11,order_coupons:0}]).order_rate,0);
+  assert.equal(summarize([{visits:11,orders:5}]).order_rate,null);
+  assert.equal(summarize([{new_good_reviews:3,verify_coupons:4}]).good_review_rate,0.75);
+  assert.equal(summarize([{new_good_reviews:3,verify_coupons:0}]).good_review_rate,null);
+  assert.equal(summarize([{verify_coupons:4}]).good_review_rate,null);
   assert.equal(summarize([{orders:1,verify_uv:null}]).verify_rate,null);
 });
 const fixture = () => ({code:200,success:true,data:[
@@ -32,9 +36,10 @@ test('simple board maps people, coupons, original amounts and platform-specific 
 async function sync({status=401,businessCode=401,simpleStatus=200,empty=false,noRightsShop=false,date='2026-11-07',statsStatus=200,statsResponse={code:200,success:true,data:{newReviewCount:0,newGoodReviewCount:0,newBadReviewCount:0,badReviewReplyPercent:'0.00%'}},reviewStatus=200,reviewResponse={code:200,success:true,data:{star:'4.9',totalReviewCount:69}}}={}) {
   const requests=[],saved=[],details=[],refunds=[],notices=[];
   const context=vm.createContext({console:{log(){},error(){}},URLSearchParams,require:name=> {assert.equal(name,'./simple-board');return {...simpleBoard,shanghaiYesterday:()=> '2026-11-08'}},
+    parseGradeModule:()=>({gradeName:'铜牌',gradeValue:1,gradeExpire:null}),parseScoreDetail:()=>64.7,
     abortRangeSync:false,shopService:{getAll:()=> [{name:'测试店'}]},mainWindow:null,setTimeout:fn=> fn(),
     reportTaskError:(_,notice)=> notices.push(notice),
-    metricService:{saveBookingTotal(){},savePromoMetrics(){},saveCallTotal(){},saveRefundMetrics:row=> refunds.push(row),saveDetails:row=> details.push(row),upsert:(row,options)=> saved.push({row,options})}});
+    metricService:{saveBookingTotal(){},savePromoMetrics(){},saveCallTotal(){},saveRefundMetrics:row=> refunds.push(row),saveDetails:row=> details.push(row),saveGrowthMetrics(){},upsert:(row,options)=> saved.push({row,options})}});
   const tab={id:'test',view:{webContents:{executeJavaScript:async code=> {
     new vm.Script(code);
     if(code.includes('/gateway/merchant/general/shopinfo'))return [{shopId:42,shopName:'测试店'}];

@@ -3,14 +3,14 @@ import { Table, Tag, Empty, Typography, Descriptions, Divider } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import * as echarts from 'echarts/core';
-import { FunnelChart, LineChart, BarChart } from 'echarts/charts';
+import { FunnelChart, LineChart, BarChart, PieChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, LegendComponent, AriaComponent } from 'echarts/components';
 import { SVGRenderer } from 'echarts/renderers';
 import './report-ui.css';
 import {RobotOutlined,LoadingOutlined} from '@ant-design/icons';
 import {latestPlatformMetrics} from './report-data';
 
-echarts.use([FunnelChart, LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, AriaComponent, SVGRenderer]);
+echarts.use([FunnelChart, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent, AriaComponent, SVGRenderer]);
 const number = v => v == null || v === '--' ? '--' : Number.isFinite(Number(v)) ? Number(v).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : String(v);
 const money = v => v == null ? '--' : '¥' + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ratio = (a,b) => a == null || b == null || Number(b) <= 0 ? null : Number(a) / Number(b);
@@ -33,12 +33,12 @@ function Funnel({summary:s,height=270}) {
   const stages=[['曝光人数',s.exposure],['访问人数',s.visits],['下单人数',s.orders]];
   const valid=value=>value!=null&&Number.isFinite(Number(value)),missing=stages.findIndex(([,value])=>!valid(value));
   const chartStages=missing<0?stages:stages.slice(0,missing),canChart=chartStages.length>=2;
-  const ratePairs=stages.slice(1).map((stage,i)=>[stages[i],stage]).filter(([[,before],[,after]])=>valid(before)&&valid(after));
+  const rates=[];if(valid(s.exposure)&&valid(s.visits))rates.push(['曝光 → 访问（累计比值）',ratio(s.visits,s.exposure)]);if(s.visits>0&&valid(s.order_coupons))rates.push(['访问 → 下单（下单券数 / 访问人数）',ratio(s.order_coupons,s.visits)]);
   const max=Math.max(1,...stages.map(([,value])=>Number(value)||0));
   const option={animationDuration:250,aria:{enabled:true},tooltip:{trigger:'item',renderMode:'richText',formatter:p=>`${p.name}\n${number(p.value)} 人`},series:[{type:'funnel',sort:'none',min:0,max,left:'3%',top:12,bottom:12,width:'62%',minSize:'0%',maxSize:'100%',gap:5,funnelAlign:'center',label:{position:'right',color:'#344256',fontSize:14,lineHeight:24,formatter:p=>`${p.name}\n${number(p.value)} 人`},labelLine:{length:12,lineStyle:{color:'#94a3b8'}},itemStyle:{borderWidth:0},data:chartStages.map(([name,value],i)=>({name,value,itemStyle:{color:['#69b1ff','#4096ff','#1677ff'][i]}}))}]};
   return <>{canChart?<Chart option={option} height={height}/>:<><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无可展示的客流转化数据"/><Descriptions column={3} items={stages.map(([label,value])=>({key:label,label,children:number(value)}))}/></>}
-    {canChart&&!valid(s.orders)&&<Typography.Paragraph type="secondary" className="chart-note">当前展示曝光到访问的转化。下单人数未提供，券数和金额单独展示，不代替下单人数。</Typography.Paragraph>}
-    <div className="report-rates">{ratePairs.map(([[beforeLabel,before],[name,value]])=><div key={name}><span>{beforeLabel.replace('人数','')} → {name.replace('人数','')}（累计比值）</span><strong>{percent(ratio(value,before))}</strong></div>)}</div>
+    {canChart&&!valid(s.orders)&&<Typography.Paragraph type="secondary" className="chart-note">当前展示曝光到访问的转化。下单人数未提供，订单转化按下单券数 ÷ 访问人数计算。</Typography.Paragraph>}
+    <div className="report-rates">{rates.map(([label,value])=><div key={label}><span>{label}</span><strong>{percent(value)}</strong></div>)}</div>
     {!valid(s.orders)&&<><Divider orientation="left">下单情况</Divider><Descriptions size="small" column={2} items={[{key:'coupons',label:'下单券数',children:number(s.order_coupons)},{key:'amount',label:'下单金额（原价）',children:money(s.order_amount)}]}/></>}
     <Divider orientation="left">核销情况</Divider><Descriptions size="small" column={2} items={[{key:'uv',label:'核销人次',children:number(s.verify_uv)},{key:'coupons',label:'核销券数',children:number(s.verify_coupons)},{key:'amount',label:'核销金额（原价）',children:money(s.verify_amount)},{key:'ratio',label:'核销 / 下单券数',children:percent(ratio(s.verify_coupons,s.order_coupons))}]}/></>;
 }
@@ -71,7 +71,7 @@ function detailColumns(withGroup,onShopClick) {
   ]),group('客流',[numericColumn('曝光人数','exposure'),numericColumn('访问人数','visits'),numericColumn('访问率','visit_rate',{rate:true,value:r=>ratio(r.visits,r.exposure)})]),
     group('下单',[numericColumn('下单人数','orders'),numericColumn('下单券数','order_coupons'),numericColumn('下单金额（原价）','order_amount')]),
     group('核销',[numericColumn('核销人次','verify_uv'),numericColumn('核销券数','verify_coupons'),numericColumn('核销金额（原价）','verify_amount'),numericColumn('核销金额 / 下单金额','verify_rate',{rate:true,value:r=>ratio(r.verify_amount,r.order_amount)})]),
-    group('星级与评价',[numericColumn('星级','star'),numericColumn('新增评价','new_reviews'),numericColumn('新增好评','new_good_reviews'),numericColumn('新增差评','new_bad_reviews'),numericColumn('差评回复率','bad_reply_rate',{rate:true})]),
+    group('星级与评价',[numericColumn('星级','star'),numericColumn('新增评价','new_reviews'),numericColumn('新增好评','new_good_reviews'),numericColumn('新增差评','new_bad_reviews'),numericColumn('好评率','good_review_rate',{rate:true,value:r=>ratio(r.new_good_reviews,r.verify_coupons)}),numericColumn('差评回复率','bad_reply_rate',{rate:true})]),
     group('在线咨询',[numericColumn('在线咨询人数','ask_user_cnt'),{title:'平均响应时长',dataIndex:'avg_reply_duration',width:145,render:(v,row)=>platformMetric(row,'avg_reply_duration',value=>value??'--')??v??'--'}]),
     group('优惠码',[...['支付订单','支付金额','核销金额','扫码人数','扫码收藏数','扫码评价数'].map((title,i)=>numericColumn(title,storeKeys[i]))]),
     group('虚拟话单',[numericColumn('话单总数','call_total')]),group('预订订单',['订单总数','已消费','已退款','待消费'].map((title,i)=>numericColumn(title,storeKeys[i+7]))),
@@ -116,4 +116,4 @@ function AIReport({text,status='empty'}) {
 }
 
 
-export { Details, Stores, Funnel, Trend, ReportTrend, AIReport };
+export { Chart, Details, Stores, Funnel, Trend, ReportTrend, AIReport };

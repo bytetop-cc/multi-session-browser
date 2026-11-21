@@ -8,6 +8,7 @@ const { BrowserWindow, BrowserView, ipcMain, session, Notification } = require('
 const { initDatabase, shopService, templateService, settingService, metricService, db } = require('./db')
 const { AutoHelper } = require('./auto-helper')
 const { readReviewFilterDebug } = require('./iframe-bridge')
+const { parseGradeModule, parseScoreDetail } = require('./growth-metrics')
 
 let mainWindow = null
 let settingsWindow = null
@@ -1048,6 +1049,43 @@ async function executeDataAnalysis(tab, customDateStr = null) {
     }
     const shopId = item.api.shopId;
     const displayName = `${item.api.shopName}${item.api.branchName ? '(' + item.api.branchName + ')' : ''}`;
+
+    // 等级与经营评分不区分平台、接口也不支持日期参数，仅在同步昨日数据时采集当前快照。
+    if (dateStr === require('./simple-board').shanghaiYesterday()) {
+      try {
+        const growth = await tab.view.webContents.executeJavaScript(`
+          (async () => {
+            const shopId = ${JSON.stringify(String(shopId))};
+            const shared = 'sourceType=1&authType=Epassport&yodaReady=h5&csecplatform=4&csecversion=4.3.0';
+            const readJson = async path => {
+              try {
+                const res = await fetch(path + '?shopId=' + encodeURIComponent(shopId) + '&' + shared, {
+                  credentials: 'include', signal: AbortSignal.timeout(15000),
+                  headers: { 'Accept': 'application/json, text/plain, */*' }
+                });
+                if (!res.ok) return null;
+                return await res.json();
+              } catch (_) { return null; }
+            };
+            return {
+              gradeJson: await readJson('/gateway/mzlgrowth/api/common/pc/gradeModule'),
+              scoreJson: await readJson('/gateway/mzlgrowth/api/common/pc/v2/scoreDetail')
+            };
+          })()
+        `);
+        const grade = parseGradeModule(growth?.gradeJson);
+        const score = parseScoreDetail(growth?.scoreJson);
+        if (grade || score !== null) {
+          metricService.saveGrowthMetrics({ shopId, shopName: displayName, date: dateStr,
+            gradeName: grade?.gradeName ?? null, gradeValue: grade?.gradeValue ?? null,
+            gradeExpire: grade?.gradeExpire ?? null, score });
+        } else {
+          addSyncError(`[${displayName}] 门店等级/经营评分未获取，保留已有记录`, '/gateway/mzlgrowth/api/common/pc/gradeModule');
+        }
+      } catch (error) {
+        addSyncError(`[${displayName}] 门店等级/经营评分同步失败，已跳过: ${error.message}`, '/gateway/mzlgrowth/api/common/pc/gradeModule');
+      }
+    }
 
     // 预订订单状态按当日下单时间筛选，保存各状态当前快照。
     for (const [orderType, statusName] of [[0, '全部'], [3, '已消费'], [5, '已退款'], [1, '待消费']]) {

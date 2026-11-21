@@ -30,6 +30,7 @@
     "files": [
       "main.js",
       "simple-board.js",
+      "growth-metrics.js",
       "task-error-notice.js",
       "db.js",
       "reply-template-rotation.js",

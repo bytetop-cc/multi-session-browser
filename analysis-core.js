@@ -8,7 +8,7 @@ const DEFAULT_PROMPT = `你是门店运营顾问。根据给定经营数据，�
 两期覆盖天数不一致或周期未结束时，不能把不完整数据当作真实增长或下滑，跳过无法比较的结论。只有保留的结论确实需要限定时，才用简短短语标注“截至目前”等。
 缺失值不当零，上期为零不计算增幅。日、周、月分别汇总后比较，禁止平均每日转化率，转化率变化用百分点。
 累计人数未跨日、跨平台去重，不称独立用户。门店日指标不与平台明细重复累加，星级取最近有效值，不累加。
-核销可能来自往期下单，核销/下单券数是累计比值，可超过100%，不是最终转化率。预订按下单日期统计，状态是同步时快照；区分原价与实付。
+核销可能来自往期下单，核销/下单券数是累计比值，可超过100%，不是最终转化率。访问→下单转化率按下单券数÷访问人数计算，同一人可下多单，不是独立买家转化率。好评率按好评总数÷核销券数计算，不是好评占评价数的比例。预订按下单日期统计，状态是同步时快照；区分原价与实付。
 日报、周报、月报明确对应实际统计周期，不能把周/月数据说成“昨天”；确需行动建议时，时点匹配当天、接下来一周或一个月。`
 
 function date(value) {
@@ -47,7 +47,10 @@ function summarize(rows) {
     result[key] = values.length ? values.reduce((a,b) => a+b,0) : null
   }
   result.visit_rate = result.visits != null && result.exposure > 0 ? result.visits / result.exposure : null
-  result.order_rate = result.orders != null && result.visits > 0 ? result.orders / result.visits : null
+  // 访问→下单按下单券数（订单数）÷ 访问人数，简版看板也能计算；同一人可下多单，可能超过 100%。
+  result.order_rate = result.order_coupons != null && result.visits > 0 ? result.order_coupons / result.visits : null
+  // 好评率按好评总数 ÷ 核销券数，可能与评价数占比不同。
+  result.good_review_rate = result.new_good_reviews != null && result.verify_coupons > 0 ? result.new_good_reviews / result.verify_coupons : null
   result.verify_rate = result.verify_uv != null && result.orders > 0 ? result.verify_uv / result.orders : null
   return result
 }
@@ -65,7 +68,7 @@ function analysisRequestBody({ model, reasoningEffort, prompt, snapshot }) {
   const pick=(row,keys)=>Object.fromEntries(keys.filter(key=>Object.hasOwn(row,key)&&(row[key]==null||['string','number'].includes(typeof row[key]))).map(key=>[key,row[key]]))
   const daily=new Map()
   for(const row of rows){const key=JSON.stringify([row.shop_name,row.stat_date]);if(!daily.has(key))daily.set(key,pick(row,['shop_name','stat_date']));for(const field of shopKeys)if(daily.get(key)[field]==null&&row[field]!=null&&['string','number'].includes(typeof row[field]))daily.get(key)[field]=row[field]}
-  const input=Object.fromEntries(['shop','mode','anchor','period','coverage','summary','comparison','platforms','trend','shop_metrics'].filter(key=>Object.hasOwn(snapshot,key)).map(key=>[key,snapshot[key]]))
+  const input=Object.fromEntries(['shop','mode','anchor','period','coverage','summary','comparison','platforms','trend','growth','shop_metrics'].filter(key=>Object.hasOwn(snapshot,key)).map(key=>[key,snapshot[key]]))
   input.details=rows.map(row=>pick(row,platformKeys))
   input.shop_daily_metrics=[...daily.values()]
   return { model, stream: false, ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}), messages: [
