@@ -8,6 +8,10 @@ test('period comparison aggregates totals before ratios and uses latest valid pl
  assert.equal(metrics.visit_rate.previous,.14);assert.equal(metrics.visit_rate.current,.2);assert(Math.abs(metrics.visit_rate.delta-.06)<1e-10);
  assert.equal(metrics.coupon_verify_rate.previous,.5);assert.equal(metrics.coupon_verify_rate.current,.6);assert.equal(metrics.dp_star.previous,4.6);assert.equal(metrics.mt_star.previous,null);assert.equal(result.previous_observed_days,2);
  assert.equal(metrics.good_review_rate.previous,.06);assert.equal(metrics.good_review_rate.current,5/120);
+ // 新增评价与明细一致：按平台汇总并给出合计。
+ assert.equal(metrics.new_reviews.previous,5);assert.equal(metrics.new_reviews.current,8);
+ assert.equal(metrics.dp_new_reviews.previous,5);assert.equal(metrics.dp_new_reviews.current,8);
+ assert.equal(metrics.mt_new_reviews.previous,null);
  // 门店指标按门店+日期去重，平台行不会重复累加。
  assert.equal(metrics.promo_pay_orders.previous,2);assert.equal(metrics.promo_pay_orders.current,5);assert.equal(metrics.promo_scan_favorites.previous,1);
  assert.equal(metrics.call_total.previous,3);assert.equal(metrics.booking_total.current,7);assert.equal(metrics.booking_consumed.current,3);assert.equal(metrics.booking_refunded.previous,1);

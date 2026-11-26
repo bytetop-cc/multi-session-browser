@@ -34,6 +34,26 @@ test('Excel round trips all report periods with typed numbers, missing values an
     assert.equal(sheet.views[0].ySplit,5);
   }
 });
+test('Excel mirrors the page table: current column highlight, change column and danger rows',async()=>{
+  const report=fixture('daily'),loaded=new ExcelJS.Workbook();
+  await loaded.xlsx.load(await createComparisonWorkbook(report).xlsx.writeBuffer());
+  const sheet=loaded.worksheets[0];
+  const changeHead=sheet.getCell(5,5);
+  assert.equal(changeHead.value,'变化');
+  const currentHead=sheet.getCell(5,4);
+  assert.equal(currentHead.fill.fgColor.argb,'FFFFF1B8');
+  assert.equal(currentHead.border.top.style,'medium');
+  assert(currentHead.value.richText.map(run=>run.text).join('').includes('本期'));
+  assert(sheet.getCell(5,3).value.richText.map(run=>run.text).join('').includes('上期'));
+  const current=sheet.getCell(6,4);
+  assert.equal(current.fill.fgColor.argb,'FFFFFDF0');
+  assert.equal(current.font.bold,true);assert.equal(current.font.size,12);
+  const index=report.comparison.metrics.findIndex(metric=>metric.key==='dp_good_reviews'),row=6+index;
+  assert.equal(sheet.getCell(row,5).value,'↓ 2 条 / 100%');
+  assert.equal(sheet.getCell(row,5).font.color.argb,'FFCF1322');
+  assert.equal(sheet.getCell(row,4).fill.fgColor.argb,'FFFFF1F0');
+  assert.equal(sheet.getCell(row,2).border.left.style,'medium');
+});
 test('Excel IPC validates owner, handles cancel/failure and saves chosen xlsx path',async()=>{
   let handler,choice={canceled:true},dialogCalls=0;
   const owner={isDestroyed:()=>false,webContents:{id:7}};

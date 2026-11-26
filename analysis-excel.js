@@ -2,6 +2,38 @@ const ExcelJS = require('exceljs');
 const {date} = require('./analysis-core');
 const labels = {daily:'日报', weekly:'周报', monthly:'月报'};
 const validNumber = value => typeof value === 'number' && Number.isFinite(value);
+const quote = String.fromCharCode(34);
+const FONT = '微软雅黑';
+// 与页面周期对比表保持一致的配色：模块列灰底、本期列浅黄、变化列浅蓝、变坏行整行标红。
+const palette = {
+  cardHead:'FFFFF8CB', head:'FFFFFCED', currentHead:'FFFFF1B8', accent:'FFE2BD17', headText:'FF7C6A1E',
+  tagText:'FFA8A29E', currentTag:'FFA16207', module:'FFFAFBFC', current:'FFFFFDF0', change:'FFFBFCFE',
+  danger:'FFFFF1F0', dangerAccent:'FFFF4D4F', grid:'FFE2E8F0', bodyText:'FF334155', currentText:'FF0F172A',
+  title:'FF1F2937', subtle:'FF64748B', muted:'FF94A3B8', good:'FF389E0D', bad:'FFCF1322', neutral:'FF64748B'
+};
+// 与页面 ComparisonTable 一致：绿色=变好，红色=变坏，灰色=中性或持平。
+const higherIsBetter = new Set(['exposure','visits','order_coupons','verify_coupons','visit_rate','order_rate','coupon_verify_rate','good_review_rate','promo_pay_orders','promo_scan_favorites','booking_total','booking_consumed','dp_star','mt_star','dp_good_reviews','mt_good_reviews','good_reviews']);
+const lowerIsBetter = new Set(['refund_coupons','booking_refunded','dp_bad_reviews','mt_bad_reviews','bad_reviews']);
+function metricEffect(key, delta) {
+  if (delta == null || Math.abs(delta) < 1e-10) return 'flat';
+  if (!higherIsBetter.has(key) && !lowerIsBetter.has(key)) return 'neutral';
+  const up = delta > 0;
+  return (higherIsBetter.has(key) ? up : !up) ? 'good' : 'bad';
+}
+const numberText = value => Number(value).toLocaleString('zh-CN', {maximumFractionDigits: 2});
+const fill = argb => ({type:'pattern', pattern:'solid', fgColor:{argb}});
+const gridBorder = () => ({top:{style:'thin',color:{argb:palette.grid}}, left:{style:'thin',color:{argb:palette.grid}}, bottom:{style:'thin',color:{argb:palette.grid}}, right:{style:'thin',color:{argb:palette.grid}}});
+function changeText(metric, before, after) {
+  if (before == null || after == null) return {text:'--', color:palette.muted};
+  const delta = after - before;
+  if (Math.abs(delta) < 1e-10) return {text:'— 持平', color:palette.muted};
+  const up = delta > 0, effect = metricEffect(metric.key, delta);
+  const color = effect === 'good' ? palette.good : effect === 'bad' ? palette.bad : palette.neutral;
+  const magnitude = metric.unit === 'rate' ? `${numberText(Math.abs(delta) * 100)} 个百分点` : `${numberText(Math.abs(delta))} ${metric.unit}`;
+  const relative = metric.unit === 'rate' || metric.unit === '星' || before === 0 ? null : delta / before;
+  const tail = metric.unit === 'rate' || metric.unit === '星' ? '' : ` / ${relative == null ? '--' : numberText(Math.abs(relative) * 100) + '%'}`;
+  return {text:(up ? '↑ ' : '↓ ') + magnitude + tail, color};
+}
 function validateReport(report) {
   const c = report?.comparison;
   if (!report?.shop?.name || !labels[report.mode] || !c || !Array.isArray(c.metrics) || c.metrics.length > 500) throw Error('请先查询有效的周期对比报表');
@@ -16,50 +48,104 @@ function validateReport(report) {
 }
 const ranged=c=>c.periods?c:{periods:[{...c.previous_period,observed_days:c.previous_observed_days},{...c.current_period,observed_days:c.current_observed_days}],metrics:c.metrics.map(metric=>({...metric,values:[metric.previous??0,metric.current??0]}))};
 function createRangeWorkbook(report) {
-  const c=ranged(report.comparison),workbook=new ExcelJS.Workbook(),columnCount=2+c.periods.length,quote=String.fromCharCode(34),periodLabel=period=>period.start===period.end?period.start:`${period.start} 至 ${period.end}`;
+  const c=ranged(report.comparison),periods=c.periods,last=periods.length-1,hasChange=last>=1;
+  const columnCount=2+periods.length+(hasChange?1:0),changeColumn=columnCount;
+  const periodLabel=period=>period.start===period.end?period.start:`${period.start} 至 ${period.end}`;
+  const workbook=new ExcelJS.Workbook();
   workbook.creator='美团助手';
   const sheet=workbook.addWorksheet(labels[report.mode]+'对比',{views:[{state:'frozen',ySplit:5,xSplit:2}]});
-  sheet.columns=[{width:20},{width:28},...c.periods.map(()=>({width:24}))];
-  sheet.mergeCells(1,1,1,columnCount);sheet.getCell(1,1).value=report.shop.name+' · '+labels[report.mode]+'对比';sheet.getCell(1,1).font={name:'微软雅黑',size:16,bold:true,color:{argb:'FF1F2937'}};sheet.getRow(1).height=32;
-  sheet.mergeCells(2,1,2,columnCount);sheet.getCell(2,1).value='对比时段：'+c.periods[0].start+' 至 '+c.periods.at(-1).end;
-  sheet.mergeCells(3,1,3,columnCount);sheet.getCell(3,1).value='已同步：'+c.periods.map(period=>periodLabel(period)+' '+(period.observed_days||0)+' 天').join('；');
-  sheet.getRow(5).values=['模块','指标',...c.periods.map(periodLabel)];sheet.getRow(5).height=28;sheet.getRow(5).eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1677FF'}};cell.alignment={vertical:'middle',horizontal:'center'};});
-  for(const metric of c.metrics){const row=sheet.addRow([metric.module,metric.label,...metric.values.map(value=>validNumber(value)?value:0)]),unit=String(metric.unit).replaceAll(quote,'');for(let col=3;col<=columnCount;col++)row.getCell(col).numFmt=metric.unit==='rate'?'0.00%':'#,##0.##'+quote+' '+unit+quote;row.height=25;row.eachCell((cell,col)=>{cell.font={name:'微软雅黑',size:11};cell.alignment={vertical:'middle',horizontal:col>2?'right':'left'};cell.border={bottom:{style:'hair',color:{argb:'FFE2E8F0'}}};if(row.number%2)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF5F8FC'}};});}
-  sheet.autoFilter={from:{row:5,column:1},to:{row:5+c.metrics.length,column:columnCount}};const noteRow=sheet.rowCount+2;sheet.mergeCells(noteRow,1,noteRow,columnCount);sheet.getCell(noteRow,1).value='未同步的时段按 0 展示；转化率按各时段总量计算；星级取时段内最近一次有效记录。';sheet.getCell(noteRow,1).alignment={wrapText:true,vertical:'middle'};sheet.getRow(noteRow).height=45;sheet.pageSetup={orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'1:5'};
+  sheet.columns=[{width:14},{width:31},...periods.map(()=>({width:23})),...(hasChange?[{width:27}]:[])];
+  sheet.mergeCells(1,1,1,columnCount);
+  const title=sheet.getCell(1,1);
+  title.value=report.shop.name+' · '+labels[report.mode]+'对比';
+  title.font={name:FONT,size:16,bold:true,color:{argb:palette.title}};
+  title.fill=fill(palette.cardHead);
+  title.alignment={vertical:'middle',horizontal:'left'};
+  title.border={bottom:{style:'medium',color:{argb:palette.accent}}};
+  sheet.getRow(1).height=32;
+  const meta=['对比时段：'+periods[0].start+' 至 '+periods[last].end,'已同步：'+periods.map(period=>periodLabel(period)+' '+(period.observed_days||0)+' 天').join('；')];
+  meta.forEach((text,index)=>{const rowIndex=2+index,row=sheet.getRow(rowIndex);sheet.mergeCells(rowIndex,1,rowIndex,columnCount);const cell=sheet.getCell(rowIndex,1);cell.value=text;cell.font={name:FONT,size:10,color:{argb:palette.subtle}};cell.alignment={vertical:'middle'};row.height=20;});
+  const head=sheet.getRow(5);
+  head.height=46;
+  for(const [col,text] of [[1,'模块'],[2,'指标']]){const cell=head.getCell(col);cell.value=text;cell.font={name:FONT,size:11,bold:true,color:{argb:palette.bodyText}};cell.fill=fill(palette.head);cell.alignment={vertical:'middle',horizontal:'left',wrapText:true};cell.border=gridBorder();}
+  periods.forEach((period,index)=>{
+    const isCurrent=index===last,isPrevious=index===last-1,tag=isCurrent?'本期':isPrevious?'上期':'';
+    const cell=head.getCell(3+index);
+    cell.value={richText:[
+      {font:{name:FONT,size:10,bold:isCurrent,color:{argb:isCurrent?palette.currentTag:palette.tagText}},text:tag+'\n'},
+      {font:{name:FONT,size:11,bold:isCurrent,color:{argb:palette.headText}},text:periodLabel(period)}
+    ]};
+    cell.fill=fill(isCurrent?palette.currentHead:palette.head);
+    cell.alignment={vertical:'bottom',horizontal:'right',wrapText:true};
+    cell.border={...gridBorder(),...(isCurrent?{top:{style:'medium',color:{argb:palette.accent}}}:{})};
+  });
+  if(hasChange){const cell=head.getCell(changeColumn);cell.value='变化';cell.font={name:FONT,size:11,bold:true,color:{argb:palette.bodyText}};cell.fill=fill(palette.head);cell.alignment={vertical:'middle',horizontal:'right'};cell.border=gridBorder();}
+  const startRow=6;
+  c.metrics.forEach((metric,index)=>{
+    const row=sheet.getRow(startRow+index);
+    const before=validNumber(metric.values[last-1])?metric.values[last-1]:null;
+    const after=validNumber(metric.values[last])?metric.values[last]:null;
+    const effect=hasChange&&before!=null&&after!=null?metricEffect(metric.key,after-before):null;
+    const danger=effect==='bad';
+    row.height=25;
+    const moduleCell=row.getCell(1);
+    moduleCell.value=metric.module;
+    moduleCell.font={name:FONT,size:11,bold:true,color:{argb:palette.bodyText}};
+    moduleCell.fill=fill(palette.module);
+    moduleCell.alignment={vertical:'middle',horizontal:'left',wrapText:true};
+    moduleCell.border=gridBorder();
+    const labelCell=row.getCell(2);
+    labelCell.value=metric.label;
+    labelCell.font={name:FONT,size:11,color:{argb:palette.title}};
+    labelCell.fill=fill(danger?palette.danger:'FFFFFFFF');
+    labelCell.alignment={vertical:'middle',horizontal:'left',wrapText:true};
+    labelCell.border={...gridBorder(),...(danger?{left:{style:'medium',color:{argb:palette.dangerAccent}}}:{})};
+    metric.values.forEach((value,index)=>{
+      const isCurrent=index===last,cell=row.getCell(3+index);
+      cell.value=validNumber(value)?value:0;
+      cell.numFmt=metric.unit==='rate'?'0.00%':'#,##0.##'+quote+' '+String(metric.unit).replaceAll(quote,'')+quote;
+      cell.font={name:FONT,size:isCurrent?12:11,bold:true,color:{argb:isCurrent?palette.currentText:palette.bodyText}};
+      cell.fill=fill(danger?palette.danger:isCurrent?palette.current:'FFFFFFFF');
+      cell.alignment={vertical:'middle',horizontal:'right'};
+      cell.border=gridBorder();
+    });
+    if(hasChange){
+      const change=changeText(metric,before,after),cell=row.getCell(changeColumn);
+      cell.value=change.text;
+      cell.font={name:FONT,size:11,bold:true,color:{argb:change.color}};
+      cell.fill=fill(danger?palette.danger:palette.change);
+      cell.alignment={vertical:'middle',horizontal:'right',wrapText:true};
+      cell.border=gridBorder();
+    }
+  });
+  // 与页面一致：同一模块纵向合并单元格。
+  let groupStart=0;
+  for(let index=1;index<=c.metrics.length;index++){
+    if(index===c.metrics.length||c.metrics[index].module!==c.metrics[groupStart].module){
+      if(index-groupStart>1)sheet.mergeCells(startRow+groupStart,1,startRow+index-1,1);
+      const cell=sheet.getCell(startRow+groupStart,1);
+      cell.font={name:FONT,size:11,bold:true,color:{argb:palette.bodyText}};
+      cell.fill=fill(palette.module);
+      cell.alignment={vertical:'middle',horizontal:'left',wrapText:true};
+      groupStart=index;
+    }
+  }
+  sheet.autoFilter={from:{row:5,column:1},to:{row:5+c.metrics.length,column:columnCount}};
+  const notes=['未同步的时段按 0 展示；转化率按各时段总量计算；星级取时段内最近一次有效记录。'];
+  if(hasChange)notes.push('变化列对比最后两个时段：'+periodLabel(periods[last-1])+' → '+periodLabel(periods[last])+'，箭头表示升降，颜色表示好坏，变坏的行整行标红。');
+  const noteRow=sheet.rowCount+2;
+  sheet.mergeCells(noteRow,1,noteRow,columnCount);
+  const note=sheet.getCell(noteRow,1);
+  note.value=notes.join('');
+  note.font={name:FONT,size:10,color:{argb:palette.subtle}};
+  note.alignment={wrapText:true,vertical:'middle'};
+  sheet.getRow(noteRow).height=45;
+  sheet.pageSetup={orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'1:5'};
   return workbook;
 }
 function createComparisonWorkbook(report) {
   validateReport(report);
   return createRangeWorkbook(report);
-  /* Legacy layout retained below only for old serialized workbooks. */
-  const c=report.comparison, workbook=new ExcelJS.Workbook();
-  workbook.creator='美团助手';
-  const sheet=workbook.addWorksheet(labels[report.mode]+'对比',{views:[{state:'frozen',ySplit:6}]});
-  sheet.columns=[{width:20},{width:28},{width:25},{width:25},{width:23},{width:18}];
-  sheet.mergeCells('A1:F1');sheet.getCell('A1').value=report.shop.name+' · '+labels[report.mode]+'对比';
-  sheet.getCell('A1').font={name:'微软雅黑',size:16,bold:true,color:{argb:'FF1F2937'}};sheet.getRow(1).height=32;
-  for(const [row,text] of [[2,'上期：'+c.previous_period.start+' 至 '+c.previous_period.end],[3,'本期：'+c.current_period.start+' 至 '+c.current_period.end],[4,'已同步：上期 '+c.previous_observed_days+' 天，本期 '+c.current_observed_days+' 天']]) {sheet.mergeCells(row,1,row,6);sheet.getCell(row,1).value=text;}
-  sheet.getRow(6).values=['模块','指标','上期','本期','变化（本期－上期）','增幅'];sheet.getRow(6).height=28;
-  sheet.getRow(6).eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1677FF'}};cell.alignment={vertical:'middle',horizontal:'center'};});
-  const quote=String.fromCharCode(34);
-  for(const metric of c.metrics) {
-    const numeric=value=>validNumber(value)?value:'--';
-    const delta=validNumber(metric.delta)?(metric.unit==='rate'?metric.delta*100:metric.delta):'--';
-    const relative=metric.unit==='rate'||metric.unit==='星'||!validNumber(metric.previous)||metric.previous===0?'--':numeric(metric.change_rate);
-    const row=sheet.addRow([metric.module,metric.label,numeric(metric.previous),numeric(metric.current),delta,relative]);
-    const unit=String(metric.unit).replaceAll(quote,'');
-    for(const col of [3,4])row.getCell(col).numFmt=metric.unit==='rate'?'0.00%':'#,##0.##'+quote+' '+unit+quote;
-    const suffix=quote+' '+(metric.unit==='rate'?'个百分点':unit)+quote;
-    row.getCell(5).numFmt='+#,##0.##'+suffix+';-#,##0.##'+suffix+';'+quote+'持平'+quote;
-    row.getCell(6).numFmt='+0.00%;-0.00%;'+quote+'持平'+quote;row.height=25;
-    row.eachCell((cell,col)=>{cell.font={name:'微软雅黑',size:11};cell.alignment={vertical:'middle',horizontal:col>2?'right':'left'};cell.border={bottom:{style:'hair',color:{argb:'FFE2E8F0'}}};if(row.number%2)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF5F8FC'}};});
-  }
-  sheet.autoFilter={from:{row:6,column:1},to:{row:6+c.metrics.length,column:6}};
-  const noteRow=sheet.rowCount+2;sheet.mergeCells(noteRow,1,noteRow,6);
-  sheet.getCell(noteRow,1).value='缺失数据保持“--”；上期为零时不计算增幅。转化率按周期总量计算，变化以百分点表示；星级取周期内最近一次有效记录。核销可能来自往期下单，核销/下单券数为累计比值。';
-  sheet.getCell(noteRow,1).alignment={wrapText:true,vertical:'middle'};sheet.getRow(noteRow).height=45;
-  sheet.pageSetup={orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,printTitlesRow:'1:6'};
-  return workbook;
 }
 function registerAnalysisExcel({ipcMain,dialog,getWindow}) {
   const active=new Set();

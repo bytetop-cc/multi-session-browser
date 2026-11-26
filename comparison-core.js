@@ -25,10 +25,11 @@ function periodMetrics(rows){
   const data=rows.filter(row=>row.platform===platform);
   const latest=[...data].filter(row=>valid(row.star)).sort((a,b)=>String(b.stat_date).localeCompare(String(a.stat_date)))[0];
   result[prefix+'_star']=latest?Number(latest.star):null;
+  result[prefix+'_new_reviews']=total(data,'new_reviews');
   result[prefix+'_good_reviews']=total(data,'new_good_reviews');
   result[prefix+'_bad_reviews']=total(data,'new_bad_reviews');
  }
- result.good_reviews=total(rows,'new_good_reviews');result.bad_reviews=total(rows,'new_bad_reviews');
+ result.new_reviews=total(rows,'new_reviews');result.good_reviews=total(rows,'new_good_reviews');result.bad_reviews=total(rows,'new_bad_reviews');
  result.good_review_rate=ratio(result.good_reviews,result.verify_coupons);
  return result;
 }
@@ -40,7 +41,7 @@ const definitions=[
  ['扫码','promo_scan_favorites','扫码收藏','次'],
  ['虚拟话单','call_total','虚拟号话单总数','条'],
  ['预订订单','booking_total','预订订单','单'],['预订订单','booking_consumed','已消费','单'],['预订订单','booking_refunded','已退款','单'],
- ['星级 / 评价','dp_star','大众点评期末星级','星'],['星级 / 评价','mt_star','美团期末星级','星'],['星级 / 评价','dp_good_reviews','新增好评 · 点评','条'],['星级 / 评价','mt_good_reviews','新增好评 · 美团','条'],['星级 / 评价','good_reviews','新增好评合计','条'],['星级 / 评价','good_review_rate','好评率（好评总数 / 核销券数）','rate'],['星级 / 评价','dp_bad_reviews','新增差评 · 点评','条'],['星级 / 评价','mt_bad_reviews','新增差评 · 美团','条'],['星级 / 评价','bad_reviews','新增差评合计','条']
+ ['星级 / 评价','dp_star','大众点评期末星级','星'],['星级 / 评价','mt_star','美团期末星级','星'],['星级 / 评价','dp_new_reviews','新增评价 · 点评','条'],['星级 / 评价','mt_new_reviews','新增评价 · 美团','条'],['星级 / 评价','new_reviews','新增评价合计','条'],['星级 / 评价','dp_good_reviews','新增好评 · 点评','条'],['星级 / 评价','mt_good_reviews','新增好评 · 美团','条'],['星级 / 评价','good_reviews','新增好评合计','条'],['星级 / 评价','good_review_rate','好评率（好评总数 / 核销券数）','rate'],['星级 / 评价','dp_bad_reviews','新增差评 · 点评','条'],['星级 / 评价','mt_bad_reviews','新增差评 · 美团','条'],['星级 / 评价','bad_reviews','新增差评合计','条']
 ];
 function comparePeriods(previousRows,currentRows,previousPeriod,currentPeriod){
  const previous=periodMetrics(previousRows),current=periodMetrics(currentRows);
