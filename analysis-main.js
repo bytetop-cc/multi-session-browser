@@ -14,7 +14,6 @@ function registerAnalysis({ app, db, ipcMain, BrowserWindow, safeStorage, metric
     if(context.configure)window.webContents.once('did-finish-load',()=>window?.webContents.send('analysis-context',context))
     window.on('closed',()=>{window=null})
   })
-  require('./analysis-pdf').registerAnalysisPdf({ipcMain,BrowserWindow,dialog:require('electron').dialog,service,getWindow:()=>window})
   require('./analysis-excel').registerAnalysisExcel({ipcMain,dialog:require('electron').dialog,getWindow:()=>window})
   require('./analysis-image').registerAnalysisImage({ipcMain,BrowserWindow,dialog:require('electron').dialog,getWindow:()=>window})
   require('./wechat-send').registerWechatSend({ipcMain,BrowserWindow,getWindow:()=>window,settingService,clipboard:require('electron').clipboard,nativeImage:require('electron').nativeImage})

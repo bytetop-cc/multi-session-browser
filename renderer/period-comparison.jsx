@@ -83,13 +83,6 @@ export function ComparisonOverview({comparison}){
   </div>
  </section>;
 }
-function Difference({row}){
- if(row.delta==null)return <Typography.Text type="secondary">--</Typography.Text>;
- if(Math.abs(row.delta)<1e-10)return <Typography.Text type="secondary">持平</Typography.Text>;
- const sign=row.delta>0?'+':'',delta=row.unit==='rate'?`${sign}${numeric(row.delta*100)} 个百分点`:`${sign}${numeric(row.delta)} ${row.unit}`;
- const label=row.unit==='rate'||row.unit==='星'?delta:`${delta} / ${row.change_rate==null?'--':(row.change_rate>0?'+':'')+numeric(row.change_rate*100)+'%'}`;
- return <span className="comparison-change">{label}</span>;
-}
 function ChangeValue({row}){
  if(row.delta==null)return <span className="comparison-change comparison-change-flat">--</span>;
  if(Math.abs(row.delta)<1e-10)return <span className="comparison-change comparison-change-flat"><MinusOutlined aria-hidden="true"/>持平</span>;
@@ -126,7 +119,3 @@ function ComparisonTable({comparison,print=false}){
  return <div className="period-comparison"><Table bordered size="small" rowKey="key" rowClassName={row=>rowEffect(row)==='bad'?'comparison-row-danger':''} columns={columns} dataSource={rows} pagination={false} scroll={print?undefined:{x:356+comparison.periods.length*190+230}}/><Typography.Paragraph type="secondary" className="comparison-note">{observed}。{changeNote}未同步的时段按 0 展示；转化率按各时段总量计算；星级取时段内最近一次有效记录；等级与评分取时段结束前最近一条快照（周/月即当周、当月最后一条）。</Typography.Paragraph></div>;
 }
 
-export function MobilePeriodComparison({comparison}){
- if(!comparison)return <Typography.Paragraph>暂无上期对比数据。</Typography.Paragraph>;
- return <div className="mobile-comparison"><Typography.Paragraph type="secondary">本期：{dateLabel(comparison.current_period)}<br/>上期：{dateLabel(comparison.previous_period)}</Typography.Paragraph>{comparison.metrics.map(row=><section className="mobile-comparison-card" key={row.key}><h4>{row.label}</h4><div className="mobile-comparison-values"><div><span>本期</span><strong>{format(row.current,row.unit)}</strong></div><div><span>上期</span><strong>{format(row.previous,row.unit)}</strong></div></div><Difference row={row}/></section>)}<Typography.Paragraph type="secondary">缺失数据不补零；上期为零不计算增幅。转化率按周期总量计算，变化以百分点表示。</Typography.Paragraph></div>;
-}

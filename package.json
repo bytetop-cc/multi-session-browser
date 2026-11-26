@@ -46,12 +46,10 @@
       "analysis-main.js",
       "report-assets/**/*",
       "comparison-core.js",
-      "analysis-pdf.js",
       "analysis-excel.js",
       "analysis-image.js",
       "wechat-send.js",
-      "overview-image.html",
-      "report-print.html"
+      "overview-image.html"
     ],
     "mac": {
       "category": "public.app-category.productivity",

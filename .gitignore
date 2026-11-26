@@ -7,5 +7,5 @@ userData/
 *.db-wal
 *.db-shm
 
-# Generated local PDF verification artifacts
+# Generated local verification artifacts
 tmp/

@@ -14,7 +14,6 @@ exports.install=async page=>{
  if(name==='metrics-get-dates')return ['2026-11-04'];
  if(name==='metrics-get-weekly')return {records:window.__empty?[]:rows(args.endDate)};
  if(name==='metrics-export-csv')return {success:true};
- if(name==='analysis-export-pdf'){if(window.__pdfFailure)throw Error('导出失败，请重试');return window.__pdfCancel?{canceled:true}:{success:true,filePath:'/tmp/test.pdf'}}
  if(name==='analysis-export-excel'){if(window.__excelFailure)throw Error('Excel 导出失败，请重试');return window.__excelCancel?{canceled:true}:{success:true,filePath:'/tmp/test.xlsx'}}
  if(name==='analysis-export-overview-image'){return {success:true,filePath:'/tmp/overview.png'}}
  if(name==='wechat-group-get')return '测试微信群';
