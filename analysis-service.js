@@ -70,7 +70,10 @@ function createAnalysisService({ db, safeStorage }) {
       WHERE m.shop_name=? AND m.stat_date BETWEEN ? AND ? AND m.is_mock=0 ORDER BY m.stat_date,m.platform`).all(canonical,startDate,endDate)
     const result=[],cursor=new Date(startDate+'T00:00:00Z'),last=new Date(endDate+'T00:00:00Z')
     while(cursor<=last){const start=cursor.toISOString().slice(0,10);let bucketEnd=new Date(cursor);if(mode==='weekly')bucketEnd.setUTCDate(bucketEnd.getUTCDate()+(7-bucketEnd.getUTCDay())%7);else if(mode==='monthly')bucketEnd=new Date(Date.UTC(bucketEnd.getUTCFullYear(),bucketEnd.getUTCMonth()+1,0));if(bucketEnd>last)bucketEnd=last;result.push({start,end:bucketEnd.toISOString().slice(0,10)});cursor.setUTCDate(bucketEnd.getUTCDate()+1)}
-    return {...compareRangePeriods(rows,result),shop_name:canonical,mode,start_date:startDate,end_date:endDate}
+    // 等级/评分取各时段内最后一条快照，不做平均；此前无快照的时段保持空值。
+    const growthRows=db.prepare(`SELECT shop_name,stat_date,grade_name,grade_value,score FROM shop_growth_metrics
+      WHERE shop_name=? AND stat_date<=? ORDER BY stat_date,shop_name`).all(canonical,endDate)
+    return {...compareRangePeriods(rows,result,growthRows),shop_name:canonical,mode,start_date:startDate,end_date:endDate}
   }
   function report({shopName, groupId, mode, anchor}) {
     let configured
@@ -134,6 +137,13 @@ function createAnalysisService({ db, safeStorage }) {
         AND g.stat_date = (SELECT MAX(x.stat_date) FROM shop_growth_metrics x
           WHERE x.shop_id = g.shop_id AND x.stat_date <= ?)
       ORDER BY g.shop_name`).all(...group.shops, current.end, current.end)
+    // 上期沿用同一规则：取上期结束前最近一次快照（周/月即当周、当月最后一条）。
+    const previousGrowth=db.prepare(`SELECT g.shop_id, g.shop_name, g.stat_date, g.grade_name,
+      g.grade_value, g.grade_expire, g.score FROM shop_growth_metrics g
+      WHERE g.shop_name IN (${marks}) AND g.stat_date <= ?
+        AND g.stat_date = (SELECT MAX(x.stat_date) FROM shop_growth_metrics x
+          WHERE x.shop_id = g.shop_id AND x.stat_date <= ?)
+      ORDER BY g.shop_name`).all(...group.shops, previousPeriod.end, previousPeriod.end)
     const days = Math.round((date(current.end)-date(current.start))/86400000)+1
     const observed=new Set(selected.map(r=>JSON.stringify([r.shop_name,r.stat_date])))
     const now = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
@@ -142,7 +152,7 @@ function createAnalysisService({ db, safeStorage }) {
         observed_platform_records:selected.length, partial_period:current.end>=now,
         note:'缺失日期不补零；人数按门店和平台累加，未跨店去重；预订为按下单日期筛选的当前状态快照。' },
       summary:summarize(selected),
-      comparison:{...comparePeriods(rows.filter(r=>r.stat_date>=bins.at(-2).start&&r.stat_date<=bins.at(-2).end),selected,bins.at(-2),current),shop_name:group.shops[0],mode},
+      comparison:{...comparePeriods(rows.filter(r=>r.stat_date>=bins.at(-2).start&&r.stat_date<=bins.at(-2).end),selected,bins.at(-2),current,{previous:previousGrowth.slice(0,1),current:growth.slice(0,1)}),shop_name:group.shops[0],mode},
       platforms:['美团','点评'].map(platform=>({ platform,...summarize(selected.filter(r=>r.platform===platform)) })),
       trend:bins.map(bin=>({...bin,...summarize(rows.filter(r=>r.stat_date>=bin.start&&r.stat_date<=bin.end))})),
       stores:group.shops.map(shop=>({shop_name:shop,...summarize(selected.filter(r=>r.shop_name===shop)), observed_days:new Set(selected.filter(r=>r.shop_name===shop).map(r=>r.stat_date)).size})),

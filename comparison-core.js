@@ -33,7 +33,22 @@ function periodMetrics(rows){
  result.good_review_rate=ratio(result.good_reviews,result.verify_coupons);
  return result;
 }
+// 等级/评分为门店快照：取时段内最后一条记录（周报/月报即当周/当月最后一条），不做平均。
+function latestSnapshot(records){
+ let latest=null;
+ for(const row of records||[]){
+  if(!row)continue;
+  const date=String(row.stat_date||''),latestDate=latest?String(latest.stat_date||''):'';
+  if(!latest||date>latestDate||(date===latestDate&&String(row.shop_name||'')<String(latest.shop_name||'')))latest=row;
+ }
+ return latest;
+}
+function snapshotMetrics(records){
+ const latest=latestSnapshot(records),grade=latest?.grade_name;
+ return {grade:grade!=null&&String(grade).trim()!==''?String(grade).trim():null,shop_score:latest&&valid(latest.score)?Number(latest.score):null};
+}
 const definitions=[
+ ['等级 / 评分','grade','门店等级','等级','snapshot'],['等级 / 评分','shop_score','经营评分','分','snapshot'],
  ['流量数据','exposure','曝光人数','人'],['流量数据','visits','访问人数','人'],
  ['交易数据','order_coupons','下单券数','张'],['交易数据','verify_coupons','核销券数','张'],['交易数据','refund_coupons','退款券数','张'],
  ['转化参考','visit_rate','曝光 → 访问人数转化率','rate'],['转化参考','order_rate','访问 → 下单转化率（下单券数 / 访问人数）','rate'],['转化参考','coupon_verify_rate','核销 / 下单券数（累计比值）','rate'],
@@ -43,13 +58,19 @@ const definitions=[
  ['预订订单','booking_total','预订订单','单'],['预订订单','booking_consumed','已消费','单'],['预订订单','booking_refunded','已退款','单'],
  ['星级 / 评价','dp_star','大众点评期末星级','星'],['星级 / 评价','mt_star','美团期末星级','星'],['星级 / 评价','dp_new_reviews','新增评价 · 点评','条'],['星级 / 评价','mt_new_reviews','新增评价 · 美团','条'],['星级 / 评价','new_reviews','新增评价合计','条'],['星级 / 评价','dp_good_reviews','新增好评 · 点评','条'],['星级 / 评价','mt_good_reviews','新增好评 · 美团','条'],['星级 / 评价','good_reviews','新增好评合计','条'],['星级 / 评价','good_review_rate','好评率（好评总数 / 核销券数）','rate'],['星级 / 评价','dp_bad_reviews','新增差评 · 点评','条'],['星级 / 评价','mt_bad_reviews','新增差评 · 美团','条'],['星级 / 评价','bad_reviews','新增差评合计','条']
 ];
-function comparePeriods(previousRows,currentRows,previousPeriod,currentPeriod){
- const previous=periodMetrics(previousRows),current=periodMetrics(currentRows);
- return {previous_period:previousPeriod,current_period:currentPeriod,previous_observed_days:new Set(previousRows.map(r=>r.stat_date)).size,current_observed_days:new Set(currentRows.map(r=>r.stat_date)).size,
- metrics:definitions.map(([module,key,label,unit])=>{const before=previous[key],after=current[key];return {key,module,label,unit,previous:before,current:after,delta:before==null||after==null?null:after-before,change_rate:before==null||after==null||before===0?null:(after-before)/before}})};
+function growthSnapshot(record){
+ if(!record)return null;
+ return {stat_date:record.stat_date||null,grade_name:record.grade_name==null?null:String(record.grade_name).trim()||null,score:valid(record.score)?Number(record.score):null};
 }
-function compareRangePeriods(rows,periods){
- const values=periods.map(period=>{const selected=rows.filter(row=>row.stat_date>=period.start&&row.stat_date<=period.end),metrics=periodMetrics(selected);return {period,observed_days:new Set(selected.map(row=>row.stat_date)).size,metrics:Object.fromEntries(Object.entries(metrics).map(([key,value])=>[key,value??0]))}});
- return {periods:values.map(item=>({...item.period,observed_days:item.observed_days})),metrics:definitions.map(([module,key,label,unit])=>({key,module,label,unit,values:values.map(item=>item.metrics[key])}))};
+function comparePeriods(previousRows,currentRows,previousPeriod,currentPeriod,growth={}){
+ const previous={...periodMetrics(previousRows),...snapshotMetrics(growth.previous)},current={...periodMetrics(currentRows),...snapshotMetrics(growth.current)};
+ return {previous_period:previousPeriod,current_period:currentPeriod,previous_observed_days:new Set(previousRows.map(r=>r.stat_date)).size,current_observed_days:new Set(currentRows.map(r=>r.stat_date)).size,growth_snapshot:growthSnapshot(latestSnapshot(growth.current)),
+ metrics:definitions.map(([module,key,label,unit,kind])=>{const before=previous[key],after=current[key],numeric=typeof before==='number'&&typeof after==='number';return {key,module,label,unit,kind,previous:before,current:after,delta:numeric?after-before:null,change_rate:numeric&&before!==0?(after-before)/before:null}})};
+}
+function compareRangePeriods(rows,periods,growthRows=[]){
+ const snapshotKeys=new Set(definitions.filter(([,key,,,kind])=>kind==='snapshot').map(([,key])=>key));
+ const values=periods.map(period=>{const selected=rows.filter(row=>row.stat_date>=period.start&&row.stat_date<=period.end),metrics={...periodMetrics(selected),...snapshotMetrics(growthRows.filter(row=>row.stat_date<=period.end))};return {period,observed_days:new Set(selected.map(row=>row.stat_date)).size,metrics:Object.fromEntries(Object.entries(metrics).map(([key,value])=>[key,snapshotKeys.has(key)?value:value??0]))}});
+ const lastPeriod=periods[periods.length-1];
+ return {periods:values.map(item=>({...item.period,observed_days:item.observed_days})),growth_snapshot:lastPeriod?growthSnapshot(latestSnapshot(growthRows.filter(row=>row.stat_date<=lastPeriod.end))):null,metrics:definitions.map(([module,key,label,unit,kind])=>({key,module,label,unit,kind,values:values.map(item=>item.metrics[key])}))};
 }
 module.exports={comparePeriods,compareRangePeriods,periodMetrics};

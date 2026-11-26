@@ -24,6 +24,10 @@ const numberText = value => Number(value).toLocaleString('zh-CN', {maximumFracti
 const fill = argb => ({type:'pattern', pattern:'solid', fgColor:{argb}});
 const gridBorder = () => ({top:{style:'thin',color:{argb:palette.grid}}, left:{style:'thin',color:{argb:palette.grid}}, bottom:{style:'thin',color:{argb:palette.grid}}, right:{style:'thin',color:{argb:palette.grid}}});
 function changeText(metric, before, after) {
+  if (metric.unit === '等级') {
+    if (!before || !after) return {text:'--', color:palette.muted};
+    return before === after ? {text:'— 持平', color:palette.muted} : {text:'— 变化', color:palette.neutral};
+  }
   if (before == null || after == null) return {text:'--', color:palette.muted};
   const delta = after - before;
   if (Math.abs(delta) < 1e-10) return {text:'— 持平', color:palette.muted};
@@ -46,7 +50,7 @@ function validateReport(report) {
   }
   if(c.periods&&c.metrics.some(metric=>!Array.isArray(metric.values)||metric.values.length!==rangePeriods.length))throw Error('对比数据与时段不一致');
 }
-const ranged=c=>c.periods?c:{periods:[{...c.previous_period,observed_days:c.previous_observed_days},{...c.current_period,observed_days:c.current_observed_days}],metrics:c.metrics.map(metric=>({...metric,values:[metric.previous??0,metric.current??0]}))};
+const ranged=c=>c.periods?c:{periods:[{...c.previous_period,observed_days:c.previous_observed_days},{...c.current_period,observed_days:c.current_observed_days}],metrics:c.metrics.map(metric=>({...metric,values:[metric.previous??(metric.kind==='snapshot'?null:0),metric.current??(metric.kind==='snapshot'?null:0)]}))};
 function createRangeWorkbook(report) {
   const c=ranged(report.comparison),periods=c.periods,last=periods.length-1,hasChange=last>=1;
   const columnCount=2+periods.length+(hasChange?1:0),changeColumn=columnCount;
@@ -54,7 +58,7 @@ function createRangeWorkbook(report) {
   const workbook=new ExcelJS.Workbook();
   workbook.creator='美团助手';
   const sheet=workbook.addWorksheet(labels[report.mode]+'对比',{views:[{state:'frozen',ySplit:5,xSplit:2}]});
-  sheet.columns=[{width:14},{width:31},...periods.map(()=>({width:23})),...(hasChange?[{width:27}]:[])];
+  sheet.columns=[{width:14},{width:31},...periods.map(()=>({width:26})),...(hasChange?[{width:27}]:[])];
   sheet.mergeCells(1,1,1,columnCount);
   const title=sheet.getCell(1,1);
   title.value=report.shop.name+' · '+labels[report.mode]+'对比';
@@ -83,10 +87,10 @@ function createRangeWorkbook(report) {
   const startRow=6;
   c.metrics.forEach((metric,index)=>{
     const row=sheet.getRow(startRow+index);
-    const before=validNumber(metric.values[last-1])?metric.values[last-1]:null;
-    const after=validNumber(metric.values[last])?metric.values[last]:null;
-    const effect=hasChange&&before!=null&&after!=null?metricEffect(metric.key,after-before):null;
+    const before=metric.values[last-1]??null,after=metric.values[last]??null;
+    const effect=hasChange&&typeof before==='number'&&typeof after==='number'?metricEffect(metric.key,after-before):null;
     const danger=effect==='bad';
+    const unit=String(metric.unit).replaceAll(quote,'');
     row.height=25;
     const moduleCell=row.getCell(1);
     moduleCell.value=metric.module;
@@ -101,9 +105,9 @@ function createRangeWorkbook(report) {
     labelCell.alignment={vertical:'middle',horizontal:'left',wrapText:true};
     labelCell.border={...gridBorder(),...(danger?{left:{style:'medium',color:{argb:palette.dangerAccent}}}:{})};
     metric.values.forEach((value,index)=>{
-      const isCurrent=index===last,cell=row.getCell(3+index);
-      cell.value=validNumber(value)?value:0;
-      cell.numFmt=metric.unit==='rate'?'0.00%':'#,##0.##'+quote+' '+String(metric.unit).replaceAll(quote,'')+quote;
+      const isCurrent=index===last,cell=row.getCell(3+index),snapshot=metric.kind==='snapshot';
+      cell.value=snapshot?(value==null?'--':(typeof value==='number'?value:String(value))):(validNumber(value)?value:0);
+      cell.numFmt=snapshot?(typeof value==='number'?'#,##0.##'+quote+' '+unit+quote:'@'):(metric.unit==='rate'?'0.00%':'#,##0.##'+quote+' '+unit+quote);
       cell.font={name:FONT,size:isCurrent?12:11,bold:true,color:{argb:isCurrent?palette.currentText:palette.bodyText}};
       cell.fill=fill(danger?palette.danger:isCurrent?palette.current:'FFFFFFFF');
       cell.alignment={vertical:'middle',horizontal:'right'};
@@ -131,7 +135,7 @@ function createRangeWorkbook(report) {
     }
   }
   sheet.autoFilter={from:{row:5,column:1},to:{row:5+c.metrics.length,column:columnCount}};
-  const notes=['未同步的时段按 0 展示；转化率按各时段总量计算；星级取时段内最近一次有效记录。'];
+  const notes=['未同步的时段按 0 展示；转化率按各时段总量计算；星级取时段内最近一次有效记录；门店等级与经营评分取时段结束前最近一条快照（周/月即当周、当月最后一条）。'];
   if(hasChange)notes.push('变化列对比最后两个时段：'+periodLabel(periods[last-1])+' → '+periodLabel(periods[last])+'，箭头表示升降，颜色表示好坏，变坏的行整行标红。');
   const noteRow=sheet.rowCount+2;
   sheet.mergeCells(noteRow,1,noteRow,columnCount);
