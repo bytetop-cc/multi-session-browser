@@ -232,7 +232,7 @@ ipcMain.handle('shell-modal-set', (event, { open }) => {
 
 app.whenReady().then(() => {
   initDatabase()
-  require('./analysis-main').registerAnalysis({ app, db, ipcMain, BrowserWindow, safeStorage: require('electron').safeStorage, metricService })
+  require('./analysis-main').registerAnalysis({ app, db, ipcMain, BrowserWindow, safeStorage: require('electron').safeStorage, metricService, settingService })
   createMainWindow()
 })
 

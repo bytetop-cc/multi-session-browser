@@ -39,8 +39,8 @@ function ScoreRing({value}){
 }
 const FUNNEL_STAGES=[['verify_coupons','核销','张'],['order_coupons','下单','张'],['visits','访问','人'],['exposure','曝光','人']];
 const FUNNEL_WIDTHS=[54,66,82,100];
-function FunnelOverview({valueAt,before,last}){
- return <div className="co-funnel">{FUNNEL_STAGES.map(([key,label,unit],index)=>{const beforeValue=valueAt(key,before),afterValue=valueAt(key,last),width=FUNNEL_WIDTHS[index];return <div className="co-funnel-row" key={key}><span className="co-funnel-label">{label}</span><div className="co-funnel-track"><div className="co-funnel-shape is-prev" style={{width:width+'%'}}/><div className="co-funnel-shape is-curr" style={{width:width+'%'}}><b>{afterValue==null?'--':numeric(afterValue)}</b><small>{unit}</small></div></div></div>;})}</div>;
+function FunnelOverview({valueAt,last}){
+ return <div className="co-funnel">{FUNNEL_STAGES.map(([key,label,unit],index)=>{const afterValue=valueAt(key,last),width=FUNNEL_WIDTHS[index];return <div className="co-funnel-row" key={key}><span className="co-funnel-label">{label}</span><div className="co-funnel-track"><div className="co-funnel-shape is-curr" style={{width:width+'%'}}><b>{afterValue==null?'--':numeric(afterValue)}</b><small>{unit}</small></div></div></div>;})}</div>;
 }
 const CONVERSION_ROWS=[['visit_rate','曝光→访问'],['order_rate','访问→下单'],['coupon_verify_rate','核销/下单'],['good_review_rate','好评率']];
 function ConversionList({valueAt,before,last}){
@@ -77,7 +77,7 @@ export function ComparisonOverview({comparison}){
    <section className="co-section"><h4>预订下单（累计）</h4><div className="co-booking"><ScoreRing value={score}/><MiniBars items={bookings} compact/></div><p className="co-caption">浅=上期 深=本期（单位：单）</p></section>
   </div>
   <div className="co-grid co-grid-bottom">
-   <section className="co-section"><h4>流量 → 交易漏斗</h4><FunnelOverview valueAt={valueAt} before={before} last={last}/><p className="co-caption">上期 / 本期（浅 / 深）</p></section>
+   <section className="co-section"><h4>流量 → 交易漏斗</h4><FunnelOverview valueAt={valueAt} last={last}/><p className="co-caption">本期累计</p></section>
    <section className="co-section"><h4>关键转化对比</h4><ConversionList valueAt={valueAt} before={before} last={last}/></section>
    <section className="co-section"><h4>评价与口碑</h4><ReputationCards items={reputation}/></section>
   </div>

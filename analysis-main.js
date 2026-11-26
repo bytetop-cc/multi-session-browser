@@ -1,6 +1,6 @@
 const path = require('path')
 const { createAnalysisService } = require('./analysis-service')
-function registerAnalysis({ app, db, ipcMain, BrowserWindow, safeStorage, metricService }) {
+function registerAnalysis({ app, db, ipcMain, BrowserWindow, safeStorage, metricService, settingService }) {
   const service = createAnalysisService({ db, safeStorage })
   let window = null
   ipcMain.handle('open-analysis', (event, options = {}) => {
@@ -16,7 +16,15 @@ function registerAnalysis({ app, db, ipcMain, BrowserWindow, safeStorage, metric
   })
   require('./analysis-pdf').registerAnalysisPdf({ipcMain,BrowserWindow,dialog:require('electron').dialog,service,getWindow:()=>window})
   require('./analysis-excel').registerAnalysisExcel({ipcMain,dialog:require('electron').dialog,getWindow:()=>window})
+  require('./analysis-image').registerAnalysisImage({ipcMain,BrowserWindow,dialog:require('electron').dialog,getWindow:()=>window})
+  require('./wechat-send').registerWechatSend({ipcMain,BrowserWindow,getWindow:()=>window,settingService,clipboard:require('electron').clipboard,nativeImage:require('electron').nativeImage})
   const handlers = {
+    'open-privacy-settings':args=>{
+      if(process.platform!=='darwin')return false
+      const pane=args?.pane==='accessibility'?'Privacy_Accessibility':'Privacy_Automation'
+      require('electron').shell.openExternal('x-apple.systempreferences:com.apple.preference.security?'+pane)
+      return true
+    },
     'analysis-shops':()=>{
       const observed=db.prepare('SELECT DISTINCT shop_name FROM daily_metrics WHERE is_mock=0 ORDER BY shop_name').all().map(row=>row.shop_name)
       const unique=new Map()

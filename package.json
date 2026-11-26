@@ -48,6 +48,9 @@
       "comparison-core.js",
       "analysis-pdf.js",
       "analysis-excel.js",
+      "analysis-image.js",
+      "wechat-send.js",
+      "overview-image.html",
       "report-print.html"
     ],
     "mac": {
@@ -56,7 +59,10 @@
         "dmg",
         "zip"
       ],
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "用于自动在微信中搜索微信群并发送对比总览图片"
+      }
     },
     "win": {
       "target": [
