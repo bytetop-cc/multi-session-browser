@@ -1367,7 +1367,7 @@ async function executeDataAnalysis(tab, customDateStr = null) {
       let verifyAmount = 0;
       let verifyCoupons = 0;
       let star = 0;
-      let newReviews = 0;
+      let newReviews = null;
       let newBadReviews = 0;
       let badReplyRate = 0;
 
@@ -1416,7 +1416,10 @@ async function executeDataAnalysis(tab, customDateStr = null) {
               val = parseFloat(valStr.replace(/,/g, '')) || 0;
             }
 
-            if (it.variable === 'review_new_cnt') newReviews = val;
+            if (it.variable === 'review_new_cnt') {
+              const count = valStr.trim().replace(/,/g, '');
+              newReviews = /^\d+$/.test(count) ? Number(count) : null;
+            }
             if (it.variable === 'bad_review_new_cnt') newBadReviews = val;
             if (it.variable === 'bad_review_reply_rate') {
               if (valStr === '--') {

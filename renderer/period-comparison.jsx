@@ -8,7 +8,7 @@ const oneDecimal=value=>Number(value).toLocaleString('zh-CN',{minimumFractionDig
 const dateLabel=period=>!period?'--':period.start===period.end?period.start:`${period.start} 至 ${period.end}`;
 const modeLabels={daily:'日报',weekly:'周报',monthly:'月报'};
 function format(value,unit){if(value==null||value==='')return '--';if(unit==='等级')return String(value);return unit==='rate'?(value*100).toFixed(2)+'%':numeric(value)+(unit==='星'?' 星':' '+unit)}
-function ranged(comparison){if(comparison.periods)return comparison;return {periods:[{...comparison.previous_period,observed_days:comparison.previous_observed_days},{...comparison.current_period,observed_days:comparison.current_observed_days}],metrics:comparison.metrics.map(row=>({...row,values:[row.previous??(row.kind==='snapshot'?null:0),row.current??(row.kind==='snapshot'?null:0)]})),shop_name:comparison.shop_name,mode:comparison.mode,growth_snapshot:comparison.growth_snapshot}}
+function ranged(comparison){if(comparison.periods)return comparison;return {...comparison,periods:[{...comparison.previous_period,observed_days:comparison.previous_observed_days},{...comparison.current_period,observed_days:comparison.current_observed_days}],metrics:comparison.metrics.map(row=>({...row,values:[row.previous??(row.kind==='snapshot'||row.module==='星级 / 评价'?null:0),row.current??(row.kind==='snapshot'||row.module==='星级 / 评价'?null:0)]})),shop_name:comparison.shop_name,mode:comparison.mode,growth_snapshot:comparison.growth_snapshot}}
 // 高低好坏方向：绿色=变好，红色=变坏，灰色=中性或持平。
 const higherIsBetter=new Set(['exposure','visits','order_coupons','verify_coupons','visit_rate','order_rate','coupon_verify_rate','good_review_rate','promo_pay_orders','promo_scan_favorites','booking_total','booking_consumed','dp_star','mt_star','dp_good_reviews','mt_good_reviews','good_reviews']);
 const lowerIsBetter=new Set(['refund_coupons','booking_refunded','dp_bad_reviews','mt_bad_reviews','bad_reviews']);
@@ -23,14 +23,14 @@ function overviewEffect(key,delta){
  if(delta==null||Math.abs(delta)<1e-10)return 'flat';
  return (lowerIsBetter.has(key)?delta<0:delta>0)?'good':'bad';
 }
-function MiniBars({items,compact=false}){
+function MiniBars({items}){
  const max=Math.max(1,...items.flatMap(item=>[item.before,item.after].map(value=>Number.isFinite(Number(value))?Math.abs(Number(value)):0)));
- const barHeight=value=>value==null?0:value===0?2:Math.max(5,Math.round(Math.abs(value)/max*(compact?62:90)));
- return <div className={`co-bars${compact?' is-compact':''}`}>{items.map(item=>{
-  const before=Number.isFinite(Number(item.before))?Number(item.before):null,after=Number.isFinite(Number(item.after))?Number(item.after):null;
+ const barHeight=value=>value==null?0:value===0?2:Math.max(5,Math.round(Math.abs(value)/max*90));
+ return <div className="co-bars">{items.map(item=>{
+  const {before,after}=item;
   const delta=before==null||after==null?null:after-before,effect=overviewEffect(item.key,delta);
-  const change=before==null||after==null?'--':after===before?'持平':before===0?'新增':(delta>0?'+':'')+oneDecimal(delta/Math.abs(before)*100)+'%';
-  return <div className="co-bar" key={item.key}><span className="co-bar-number">{after==null?'--':numeric(after)}</span><div className="co-bar-pair" aria-hidden="true"><i className="co-bar-fill is-prev" style={{height:barHeight(before)}}/><i className="co-bar-fill is-curr" style={{height:barHeight(after)}}/></div><span className={`co-delta is-${effect}`}><i/>{change}</span><span className="co-bar-label">{item.label}</span></div>;
+  const change=before==null||after==null?'--':after===before?'持平':before===0?`+${numeric(delta)} ${item.unit}`:(delta>0?'+':'')+numeric(delta/Math.abs(before)*100)+'%';
+  return <div className="co-bar" key={item.key}><span className="co-bar-number" aria-label={`上期 ${format(before,item.unit)}，本期 ${format(after,item.unit)}`}><span>{before==null?'--':numeric(before)}</span><span aria-hidden="true"> → </span><strong>{after==null?'--':numeric(after)}</strong></span><div className="co-bar-pair" aria-hidden="true"><i className="co-bar-fill is-prev" style={{height:barHeight(before)}}/><i className="co-bar-fill is-curr" style={{height:barHeight(after)}}/></div><span className={`co-delta is-${effect}`}><i/>{change}</span><span className="co-bar-label">{item.label}</span></div>;
  })}</div>;
 }
 function ScoreRing({value}){
@@ -39,8 +39,22 @@ function ScoreRing({value}){
 }
 const FUNNEL_STAGES=[['verify_coupons','核销','张'],['order_coupons','下单','张'],['visits','访问','人'],['exposure','曝光','人']];
 const FUNNEL_WIDTHS=[54,66,82,100];
-function FunnelOverview({valueAt,last}){
- return <div className="co-funnel">{FUNNEL_STAGES.map(([key,label,unit],index)=>{const afterValue=valueAt(key,last),width=FUNNEL_WIDTHS[index];return <div className="co-funnel-row" key={key}><span className="co-funnel-label">{label}</span><div className="co-funnel-track"><div className="co-funnel-shape is-curr" style={{width:width+'%'}}><b>{afterValue==null?'--':numeric(afterValue)}</b><small>{unit}</small></div></div></div>;})}</div>;
+function FunnelOverview({valueAt,before,last}){
+ return <div className="co-funnel">{FUNNEL_STAGES.map(([key,label,unit],index)=>{
+  const previous=valueAt(key,before),current=valueAt(key,last);
+  const total=(previous??0)+(current??0);
+  const previousShare=total>0?(previous??0)/total*100:null;
+  return <div className="co-funnel-row" key={key}>
+   <span className="co-funnel-label">{label}</span>
+   <div className="co-funnel-track">
+    <div className="co-funnel-shape" aria-hidden="true" style={{
+     width:FUNNEL_WIDTHS[index]+'%',
+     ...(previousShare==null?{}:{'--co-funnel-previous-share':previousShare+'%'})
+    }}/>
+    <span className="co-funnel-values">{format(previous,unit)} → {format(current,unit)}</span>
+   </div>
+  </div>;
+ })}</div>;
 }
 const CONVERSION_ROWS=[['visit_rate','曝光→访问'],['order_rate','访问→下单'],['coupon_verify_rate','核销/下单'],['good_review_rate','好评率']];
 function ConversionList({valueAt,before,last}){
@@ -59,25 +73,41 @@ function ReputationCards({items}){
 }
 export function ComparisonOverview({comparison}){
  if(!comparison)return null;
- const data=ranged(comparison),periods=data.periods||[];if(periods.length<2)return null;
+ const data=ranged(comparison),periods=data.periods||[];if(periods.length<2)return <Alert type="info" title="请选择覆盖至少两个统计周期的对比时段"/>;
  const last=periods.length-1,before=last-1,mode=data.mode||comparison.mode;
  const metric=key=>data.metrics.find(item=>item.key===key);
  const valueAt=(key,index)=>metric(key)?.values?.[index]??null;
  const collect=(fields)=>fields.map(([key,label,unit])=>({key,label,unit,before:valueAt(key,before),after:valueAt(key,last)}));
  const flow=collect([['exposure','曝光人数','人'],['visits','访问人数','人'],['order_coupons','下单券','张'],['verify_coupons','核销券','张'],['refund_coupons','退款券','张']]);
- const actions=collect([['promo_pay_orders','优惠码订单','单'],['promo_scan_favorites','扫码收藏','次'],['call_total','虚拟话单','条'],['booking_total','预订订单','单'],['booking_consumed','预订已消费','单']]);
- const bookings=collect([['booking_total','预订下单','单'],['booking_consumed','已消费','单'],['booking_refunded','已退款','单']]);
- const reputation=[...collect([['new_reviews','新增评价','条'],['bad_reviews','新增差评','条']]),...collect([['dp_star','大众点评星级','星'],['mt_star','美团星级','星']])];
+ const actions=collect([
+  ['promo_pay_orders','优惠码订单','单'],['promo_scan_favorites','扫码收藏','次'],['call_total','虚拟话单','条'],
+  ['booking_total','预订订单','单'],['booking_consumed','预订已消费','单'],['booking_refunded','预订已退款','单']
+ ]);
+ const reputation=[...collect([['new_reviews','新增评价合计','条'],['bad_reviews','新增差评','条']]),...collect([['dp_star','大众点评星级','星'],['mt_star','美团星级','星']])];
  const grade=valueAt('grade',last)||data.growth_snapshot?.grade_name||null,score=valueAt('shop_score',last)??data.growth_snapshot?.score??null,syncDate=data.growth_snapshot?.stat_date||'';
  return <section className="comparison-overview" aria-label="对比总览">
-  <header className="co-head"><div className="co-head-main"><h3 className="co-title">{data.shop_name||''}{modeLabels[mode]?' · '+modeLabels[mode]:''}</h3><p className="co-sub">本期 <b>{dateLabel(periods[last])}</b> <span>vs</span> 上期 <b>{dateLabel(periods[before])}</b></p></div><div className="co-head-side"><div className="co-grade"><span>门店等级</span><strong>{grade||'--'}</strong></div>{syncDate&&<small>{syncDate} 同步</small>}</div></header>
+  <header className="co-head">
+   <div className="co-head-main">
+    <p className="co-brand"><strong>奇计营销</strong><span>数据驱动结果增长</span></p>
+    <h3 className="co-title">{data.shop_name||''}{modeLabels[mode]&&<> · <span className={mode==='daily'?'co-daily-title':undefined}>{modeLabels[mode]}</span></>}</h3>
+    <div className="co-periods">
+     <span>上期 <b>{dateLabel(periods[before])}</b></span>
+     <span>本期 <b>{dateLabel(periods[last])}</b></span>
+    </div>
+   </div>
+   <img className="co-contact-qr" src="report-assets/susu-wechat.png" width="88" height="88" alt="苏苏的微信二维码"/>
+  </header>
   <div className="co-grid co-grid-top">
    <section className="co-section"><h4>流量与交易</h4><MiniBars items={flow}/><p className="co-caption">浅=上期 深=本期（单位：人 / 张）</p></section>
    <section className="co-section"><h4>获客动作</h4><MiniBars items={actions}/><p className="co-caption">浅=上期 深=本期（单位：单 / 次 / 条）</p></section>
-   <section className="co-section"><h4>预订下单（累计）</h4><div className="co-booking"><ScoreRing value={score}/><MiniBars items={bookings} compact/></div><p className="co-caption">浅=上期 深=本期（单位：单）</p></section>
+   <section className="co-section"><h4>经营评分</h4><div className="co-score-panel">
+    <div className="co-grade"><span>门店等级</span><strong>{grade||'--'}</strong></div>
+    <ScoreRing value={score}/>
+    {syncDate&&<small className="co-score-note">{syncDate} 同步</small>}
+   </div></section>
   </div>
   <div className="co-grid co-grid-bottom">
-   <section className="co-section"><h4>流量 → 交易漏斗</h4><FunnelOverview valueAt={valueAt} last={last}/><p className="co-caption">本期累计</p></section>
+   <section className="co-section"><h4>流量 → 交易漏斗</h4><FunnelOverview valueAt={valueAt} before={before} last={last}/><p className="co-caption">浅色为上期累计，深色为本期累计</p></section>
    <section className="co-section"><h4>关键转化对比</h4><ConversionList valueAt={valueAt} before={before} last={last}/></section>
    <section className="co-section"><h4>评价与口碑</h4><ReputationCards items={reputation}/></section>
   </div>
@@ -105,7 +135,7 @@ function InteractivePeriodComparison({initial,onChange}){
  const initialRange=value=>{const data=ranged(value);return [dayjs(data.periods[0].start),dayjs(data.periods.at(-1).end)]};
  const [range,setRange]=useState(()=>initialRange(initial));
  useEffect(()=>{const next=ranged(initial);setComparison(next);setRange(initialRange(initial));onChange?.(next)},[initial]);
- async function query(){if(!range?.[0]||!range?.[1]){message.error('请选择完整的对比日期范围');return}setLoading(true);try{const next=await invoke('analysis-comparison',{shopName:initial.shop_name,mode:initial.mode,startDate:range[0].format('YYYY-MM-DD'),endDate:range[1].format('YYYY-MM-DD')});Object.assign(initial,next);setComparison(next);onChange?.(next)}catch(error){message.error(error.message||String(error))}finally{setLoading(false)}}
+ async function query(){if(!range?.[0]||!range?.[1]){message.error('请选择完整的对比日期范围');return}setLoading(true);try{const next=await invoke('analysis-comparison',{shopName:initial.shop_name,mode:initial.mode,startDate:range[0].format('YYYY-MM-DD'),endDate:range[1].format('YYYY-MM-DD')});setComparison(next);onChange?.(next)}catch(error){message.error(error.message||String(error))}finally{setLoading(false)}}
  return <><Form className="comparison-filter" layout="inline" onFinish={query}><Form.Item label="对比时段"><DatePicker.RangePicker id="comparisonRange" aria-label="对比时段" value={range} onChange={setRange} allowClear={false}/></Form.Item><Form.Item><Button id="queryComparison" type="primary" htmlType="submit" icon={<SearchOutlined/>} loading={loading}>对比</Button></Form.Item></Form><Spin spinning={loading}><ComparisonTable comparison={comparison}/></Spin></>;
 }
 function ComparisonTable({comparison,print=false}){
@@ -116,6 +146,6 @@ function ComparisonTable({comparison,print=false}){
  const observed=comparison.periods.map(period=>`${dateLabel(period)} 已同步 ${period.observed_days} 天`).join('；');
  const changeNote=last>=1?`变化列对比最后两个时段：${dateLabel(comparison.periods[last-1])} → ${dateLabel(comparison.periods[last])}，箭头表示升降，颜色表示好坏，变坏的行整行标红。`:'';
  const rowEffect=row=>{if(row.unit==='等级')return null;const before=row.values[last-1]??null,after=row.values[last]??null;return before==null||after==null?null:metricEffect(row.key,after-before)};
- return <div className="period-comparison"><Table bordered size="small" rowKey="key" rowClassName={row=>rowEffect(row)==='bad'?'comparison-row-danger':''} columns={columns} dataSource={rows} pagination={false} scroll={print?undefined:{x:356+comparison.periods.length*190+230}}/><Typography.Paragraph type="secondary" className="comparison-note">{observed}。{changeNote}未同步的时段按 0 展示；转化率按各时段总量计算；星级取时段内最近一次有效记录；等级与评分取时段结束前最近一条快照（周/月即当周、当月最后一条）。</Typography.Paragraph></div>;
+ return <div className="period-comparison"><Table bordered size="small" rowKey="key" rowClassName={row=>rowEffect(row)==='bad'?'comparison-row-danger':''} columns={columns} dataSource={rows} pagination={false} scroll={print?undefined:{x:356+comparison.periods.length*190+230}}/><Typography.Paragraph type="secondary" className="comparison-note">{observed}。{changeNote}未同步的评价和星级显示为 --，其他未同步指标按 0 展示；转化率按各时段总量计算；星级取时段内最近一次有效记录；等级与评分取时段结束前最近一条快照（周/月即当周、当月最后一条）。</Typography.Paragraph></div>;
 }
 

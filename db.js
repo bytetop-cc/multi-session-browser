@@ -536,7 +536,7 @@ const metricService = {
       verify_amount: numeric(metric.verify_amount),
       verify_coupons: numeric(metric.verify_coupons),
       star: numeric(metric.star),
-      new_reviews: numeric(metric.new_reviews),
+      new_reviews: metric.new_reviews === null ? null : numeric(metric.new_reviews),
       new_good_reviews: metric.new_good_reviews == null ? null : numeric(metric.new_good_reviews),
       new_bad_reviews: numeric(metric.new_bad_reviews),
       bad_reply_rate: numeric(metric.bad_reply_rate),

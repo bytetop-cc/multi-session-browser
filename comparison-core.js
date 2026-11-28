@@ -68,8 +68,8 @@ function comparePeriods(previousRows,currentRows,previousPeriod,currentPeriod,gr
  metrics:definitions.map(([module,key,label,unit,kind])=>{const before=previous[key],after=current[key],numeric=typeof before==='number'&&typeof after==='number';return {key,module,label,unit,kind,previous:before,current:after,delta:numeric?after-before:null,change_rate:numeric&&before!==0?(after-before)/before:null}})};
 }
 function compareRangePeriods(rows,periods,growthRows=[]){
- const snapshotKeys=new Set(definitions.filter(([,key,,,kind])=>kind==='snapshot').map(([,key])=>key));
- const values=periods.map(period=>{const selected=rows.filter(row=>row.stat_date>=period.start&&row.stat_date<=period.end),metrics={...periodMetrics(selected),...snapshotMetrics(growthRows.filter(row=>row.stat_date<=period.end))};return {period,observed_days:new Set(selected.map(row=>row.stat_date)).size,metrics:Object.fromEntries(Object.entries(metrics).map(([key,value])=>[key,snapshotKeys.has(key)?value:value??0]))}});
+ const nullableKeys=new Set(definitions.filter(([module,,,,kind])=>kind==='snapshot'||module==='星级 / 评价').map(([,key])=>key));
+ const values=periods.map(period=>{const selected=rows.filter(row=>row.stat_date>=period.start&&row.stat_date<=period.end),metrics={...periodMetrics(selected),...snapshotMetrics(growthRows.filter(row=>row.stat_date<=period.end))};return {period,observed_days:new Set(selected.map(row=>row.stat_date)).size,metrics:Object.fromEntries(Object.entries(metrics).map(([key,value])=>[key,nullableKeys.has(key)?value:value??0]))}});
  const lastPeriod=periods[periods.length-1];
  return {periods:values.map(item=>({...item.period,observed_days:item.observed_days})),growth_snapshot:lastPeriod?growthSnapshot(latestSnapshot(growthRows.filter(row=>row.stat_date<=lastPeriod.end))):null,metrics:definitions.map(([module,key,label,unit,kind])=>({key,module,label,unit,kind,values:values.map(item=>item.metrics[key])}))};
 }

@@ -9,6 +9,8 @@ test('single-store report, independent history, legacy preservation and no group
  for(const [i,shop_name] of ['门店甲','门店乙'].entries())for(const platform of ['美团','点评'])metricService.upsert({shop_id:String(i+1),shop_name,platform,stat_date:'2026-11-04',exposure:(i+1)*10,visits:2,orders:1,order_amount:(i+1)*100,verify_uv:1,verify_amount:50,order_coupons:1,verify_coupons:1,star:4.2,new_reviews:0,new_bad_reviews:0,bad_reply_rate:0});
  const query={mode:'daily',anchor:'2026-11-04'},a=service.report({...query,shopName:'门店甲'}),b=service.report({...query,shopName:'门店乙'});
  assert.equal(a.shop.name,'门店甲');assert.equal(a.summary.order_amount,200);assert.equal(b.summary.order_amount,400);assert(a.details.every(r=>r.shop_name==='门店甲'));assert.notEqual(a.group.id,b.group.id);assert.equal(service.groups().length,0);
+ const crossMonth=service.comparison({shopName:'门店甲',mode:'weekly',startDate:'2026-10-26',endDate:'2026-11-04'});
+ assert.deepEqual(crossMonth.periods.map(({start,end})=>[start,end]),[['2026-10-26','2026-11-01'],['2026-11-02','2026-11-04']]);
  const insert=db.prepare("INSERT INTO analysis_runs(group_id,group_name,mode,anchor,start_date,end_date,prompt,snapshot_json,model,status,result) VALUES(?,?,'daily','2026-11-04','2026-11-04','2026-11-04','x',?,'test','success','saved')");
  const aid=Number(insert.run(a.group.id,'门店甲',JSON.stringify(a)).lastInsertRowid);const bid=Number(insert.run(b.group.id,'门店乙',JSON.stringify(b)).lastInsertRowid);
  const legacy=Number(insert.run(99,'旧单店',JSON.stringify({...a,group:{id:99,name:'旧单店',shops:['门店甲']}})).lastInsertRowid);

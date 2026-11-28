@@ -49,6 +49,24 @@ function createAnalysisService({ db, safeStorage }) {
     return config()
   }
   const groupData = id => { const g=groups().find(g=>g.id===Number(id));if(!g)throw Error('请先配置并选择门店组');return g }
+  function readOverview(row) {
+    let components = [];
+    try {
+      const data = JSON.parse(row.overview_json || '{}').data;
+      if (Array.isArray(data)) components = data;
+    } catch (_) {}
+    delete row.overview_json;
+
+    // 旧版采集将接口的 “--” 写成 0。保留近期评价接口返回的真实零值。
+    if (row.new_reviews === 0 && row.new_good_reviews == null) {
+      const review = components.find(item => item?.componentId === 'reviewSummaryPC');
+      if (Array.isArray(review?.body) && review.body.some(item =>
+        item?.variable === 'review_new_cnt' && item.value === '--')) {
+        row.new_reviews = null;
+      }
+    }
+    return components;
+  }
   function comparison({shopName, mode, startDate, endDate}) {
     if(!/^\d{4}-\d{2}-\d{2}$/.test(startDate)||!/^\d{4}-\d{2}-\d{2}$/.test(endDate)||startDate>endDate)throw Error('请选择有效的对比日期范围')
     if(!['daily','weekly','monthly'].includes(mode))throw Error('无效报表周期')
@@ -59,7 +77,7 @@ function createAnalysisService({ db, safeStorage }) {
     const rows=db.prepare(`SELECT m.*,r.refund_coupons,r.refund_amount,
       p.pay_orders AS promo_pay_orders, p.scan_favorites AS promo_scan_favorites,
       c.total AS call_total, b0.total AS booking_total, b3.total AS booking_consumed,
-      b5.total AS booking_refunded
+      b5.total AS booking_refunded, md.response_json AS overview_json
       FROM daily_metrics m
       LEFT JOIN shop_refund_metrics r ON r.shop_id=m.shop_id AND r.stat_date=m.stat_date AND r.platform=m.platform
       LEFT JOIN shop_promo_metrics p ON p.shop_id=m.shop_id AND p.stat_date=m.stat_date
@@ -67,9 +85,22 @@ function createAnalysisService({ db, safeStorage }) {
       LEFT JOIN shop_booking_totals b0 ON b0.shop_id=m.shop_id AND b0.stat_date=m.stat_date AND b0.order_type=0
       LEFT JOIN shop_booking_totals b3 ON b3.shop_id=m.shop_id AND b3.stat_date=m.stat_date AND b3.order_type=3
       LEFT JOIN shop_booking_totals b5 ON b5.shop_id=m.shop_id AND b5.stat_date=m.stat_date AND b5.order_type=5
+      LEFT JOIN metric_details md ON md.shop_id=m.shop_id AND md.platform=m.platform AND md.start_date=m.stat_date AND md.end_date=m.stat_date
       WHERE m.shop_name=? AND m.stat_date BETWEEN ? AND ? AND m.is_mock=0 ORDER BY m.stat_date,m.platform`).all(canonical,startDate,endDate)
-    const result=[],cursor=new Date(startDate+'T00:00:00Z'),last=new Date(endDate+'T00:00:00Z')
-    while(cursor<=last){const start=cursor.toISOString().slice(0,10);let bucketEnd=new Date(cursor);if(mode==='weekly')bucketEnd.setUTCDate(bucketEnd.getUTCDate()+(7-bucketEnd.getUTCDay())%7);else if(mode==='monthly')bucketEnd=new Date(Date.UTC(bucketEnd.getUTCFullYear(),bucketEnd.getUTCMonth()+1,0));if(bucketEnd>last)bucketEnd=last;result.push({start,end:bucketEnd.toISOString().slice(0,10)});cursor.setUTCDate(bucketEnd.getUTCDate()+1)}
+    rows.forEach(readOverview)
+    const result = [];
+    const last = date(endDate);
+    let cursor = date(startDate);
+    while (cursor <= last) {
+      const start = cursor.toISOString().slice(0, 10);
+      let bucketEnd = new Date(cursor);
+      if (mode === 'weekly') bucketEnd.setUTCDate(bucketEnd.getUTCDate() + (7 - bucketEnd.getUTCDay()) % 7);
+      if (mode === 'monthly') bucketEnd = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 0));
+      if (bucketEnd > last) bucketEnd = last;
+      result.push({ start, end: bucketEnd.toISOString().slice(0, 10) });
+      cursor = new Date(bucketEnd);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
     // 等级/评分取各时段内最后一条快照，不做平均；此前无快照的时段保持空值。
     const growthRows=db.prepare(`SELECT shop_name,stat_date,grade_name,grade_value,score FROM shop_growth_metrics
       WHERE shop_name=? AND stat_date<=? ORDER BY stat_date,shop_name`).all(canonical,endDate)
@@ -109,11 +140,10 @@ function createAnalysisService({ db, safeStorage }) {
       LEFT JOIN metric_details md ON md.shop_id=m.shop_id AND md.platform=m.platform AND md.start_date=m.stat_date AND md.end_date=m.stat_date
       WHERE m.shop_name IN (${marks}) AND m.stat_date BETWEEN ? AND ? AND m.is_mock=0 ORDER BY m.stat_date, m.shop_name, m.platform`).all(...group.shops,start,end)
     for (const row of rows) {
-      let consultation=[]
-      try { const component=JSON.parse(row.overview_json || '{}').data?.find(c=>c?.componentId==='imSummaryPC');if(Array.isArray(component?.body))consultation=component.body } catch(_) {}
+      const body = readOverview(row).find(item => item?.componentId === 'imSummaryPC')?.body;
+      const consultation = Array.isArray(body) ? body : [];
       row.ask_user_cnt=consultation.find(it=>it?.variable==='ask_user_cnt')?.value ?? null
       row.avg_reply_duration=consultation.find(it=>it?.variable==='avg_reply_duration')?.value ?? null
-      delete row.overview_json
     }
     const selected = rows.filter(r=>r.stat_date>=current.start && r.stat_date<=current.end)
     const memberIds = [...new Set(db.prepare(`SELECT DISTINCT shop_id FROM daily_metrics WHERE shop_name IN (${marks}) AND shop_id IS NOT NULL AND shop_id <> ''`).all(...group.shops).map(r=>r.shop_id))]

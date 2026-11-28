@@ -50,7 +50,7 @@ function validateReport(report) {
   }
   if(c.periods&&c.metrics.some(metric=>!Array.isArray(metric.values)||metric.values.length!==rangePeriods.length))throw Error('对比数据与时段不一致');
 }
-const ranged=c=>c.periods?c:{periods:[{...c.previous_period,observed_days:c.previous_observed_days},{...c.current_period,observed_days:c.current_observed_days}],metrics:c.metrics.map(metric=>({...metric,values:[metric.previous??(metric.kind==='snapshot'?null:0),metric.current??(metric.kind==='snapshot'?null:0)]}))};
+const ranged=c=>c.periods?c:{periods:[{...c.previous_period,observed_days:c.previous_observed_days},{...c.current_period,observed_days:c.current_observed_days}],metrics:c.metrics.map(metric=>({...metric,values:[metric.previous??(metric.kind==='snapshot'||metric.module==='星级 / 评价'?null:0),metric.current??(metric.kind==='snapshot'||metric.module==='星级 / 评价'?null:0)]}))};
 function createRangeWorkbook(report) {
   const c=ranged(report.comparison),periods=c.periods,last=periods.length-1,hasChange=last>=1;
   const columnCount=2+periods.length+(hasChange?1:0),changeColumn=columnCount;
@@ -135,7 +135,7 @@ function createRangeWorkbook(report) {
     }
   }
   sheet.autoFilter={from:{row:5,column:1},to:{row:5+c.metrics.length,column:columnCount}};
-  const notes=['未同步的时段按 0 展示；转化率按各时段总量计算；星级取时段内最近一次有效记录；门店等级与经营评分取时段结束前最近一条快照（周/月即当周、当月最后一条）。'];
+  const notes=['未同步的评价和星级显示为 --，其他未同步指标按 0 展示；转化率按各时段总量计算；星级取时段内最近一次有效记录；门店等级与经营评分取时段结束前最近一条快照（周/月即当周、当月最后一条）。'];
   if(hasChange)notes.push('变化列对比最后两个时段：'+periodLabel(periods[last-1])+' → '+periodLabel(periods[last])+'，箭头表示升降，颜色表示好坏，变坏的行整行标红。');
   const noteRow=sheet.rowCount+2;
   sheet.mergeCells(noteRow,1,noteRow,columnCount);

@@ -39,3 +39,17 @@ test('range comparison keeps the last snapshot per period and leaves missing per
  const empty=Object.fromEntries(compareRangePeriods([],periods,[]).metrics.map(r=>[r.key,r]));
  assert.deepEqual(empty.grade.values,[null,null]);assert.deepEqual(empty.shop_score.values,[null,null]);
 });
+
+test('review comparisons distinguish missing values from recorded zeros',()=>{
+ const periods=['2026-11-23','2026-11-24','2026-11-25'].map(date=>({start:date,end:date}));
+ const rows=[
+  {stat_date:'2026-11-23',platform:'美团',new_reviews:null},
+  {stat_date:'2026-11-24',platform:'美团',new_reviews:0},
+  {stat_date:'2026-11-25',platform:'美团',new_reviews:4},
+  {stat_date:'2026-11-25',platform:'点评',new_reviews:2}
+ ];
+ const metrics=Object.fromEntries(compareRangePeriods(rows,periods).metrics.map(metric=>[metric.key,metric.values]));
+ assert.deepEqual(metrics.new_reviews,[null,0,6]);
+ assert.deepEqual(metrics.mt_new_reviews,[null,0,4]);
+ assert.deepEqual(metrics.dp_new_reviews,[null,null,2]);
+});
